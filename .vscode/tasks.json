@@ -1,0 +1,30 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build-Master-System",
+            "type": "shell",
+            "linux": {
+                "command": "./build.sh ${input:param1}"
+            },
+            "osx": {
+                "command": "./build.sh ${input:param1}"
+            },
+            "windows": {
+                "command": "build.bat ${input:param1}"
+              },
+            "presentation": {"echo": true, "reveal": "always", "focus": false, "panel": "shared", "showReuseMessage": false, "clear": true},
+            "group": {"kind": "build", "isDefault": true},
+        }
+    ],
+    "inputs": [
+        {
+            "id": "param1",
+            "description": "Choose project number (0 - 10)",
+            "default": "0",
+            "type": "promptString"
+        },
+    ]
+}

@@ -1,0 +1,40 @@
+; this file was created with wlalink by ville helin <ville.helin@iki.fi>.
+; wla symbolic information for "..\out\example-1.sms".
+
+[information]
+version 2
+
+[labels]
+00:0068 main
+00:007f ClearVRAMLoop
+00:00a8 WriteTilesLoop
+00:00c0 WriteTextLoop
+00:00d2 Loop
+00:00d5 Message
+00:00ed MessageEnd
+00:00ed PaletteData
+00:00fd PaletteDataEnd
+00:00fd VdpInitData
+00:010f VdpInitDataEnd
+00:010f FontData
+00:0d2f FontDataEnd
+00:0034 *WLA_SDSC_PRG_AUTHOR_PTR
+00:0027 *WLA_SDSC_PRG_NAME_PTR
+00:0006 *WLA_SDSC_PRG_NOTES_PTR
+
+[definitions]
+00000006 _sizeof_*WLA_SDSC_PRG_AUTHOR_PTR
+0000000d _sizeof_*WLA_SDSC_PRG_NAME_PTR
+00000021 _sizeof_*WLA_SDSC_PRG_NOTES_PTR
+00000017 _sizeof_main
+00000029 _sizeof_ClearVRAMLoop
+00000018 _sizeof_WriteTilesLoop
+00000012 _sizeof_WriteTextLoop
+00000003 _sizeof_Loop
+00000018 _sizeof_Message
+00000000 _sizeof_MessageEnd
+00000010 _sizeof_PaletteData
+00000000 _sizeof_PaletteDataEnd
+00000012 _sizeof_VdpInitData
+00000000 _sizeof_VdpInitDataEnd
+00000c20 _sizeof_FontData

@@ -1,0 +1,75 @@
+   
+VRAM => 16 Kilobytes -> 16.384 bytes
+
+   $4000 ---------------------------------------------------------------
+
+         Sprite info table: contains x,y and tile number for each sprite
+
+   $3F00 ---------------------------------------------------------------
+
+         BG Screen display: 32x28 table of tile numbers/attributes
+		 
+		 Cada "screen tile" tiene dos bytes de información -> 32 * 28 * 2 = 1.792 bytes disponibles que definen lo que se ve en pantalla.
+		 
+		 Estructura de los 2 bytes de información:
+		 	bit 15: unused
+			bit 14: unused
+			bit 13: unused
+			bit 12: when set, tile is displayed in front of sprites
+			bit 11: when set, display tile using sprite palette rather than tile palette
+			bit 10: when set, flip tile vertically
+			bit 9: when set, flip tile horizontally
+			bit 0-8: tile definition number to use (0..511)
+
+   $3800 ---------------------------------------------------------------
+		
+		Info:
+		- Estructura de tiles (Little Endian):
+		
+			8x8 pixels tile -> 32 bytes.
+			
+			
+		
+			Estructura de cada Byte de esos 32 (una linea de pixeles del tile):
+						| 
+			Pixels		|	4 bits color: (msb of colour) -> (lsb of colour)
+			------------------------------------------------						
+			Pixel a la izq	0: bits 	31, 23, 15, 7
+			--------------- 1: bits 	30, 22, 14, 6
+			--------------- 2: bits 	29, 21, 13, 5
+			--------------- 3: bits 	28, 20, 12, 4
+			--------------- 4: bits 	27, 19, 11, 3
+			--------------- 5: bits 	26, 18, 10, 2
+			--------------- 6: bits 	25, 17,  9, 1			   
+			Pixel a la der 	7: bits 	24, 16,  8, 0
+			
+			Una línea de 8 pixeles se podría setear de la siguiente forma:
+			
+			bit 0-7     15-8      	16-23     	24-31
+			10000000   	10000000   	10000000 	10000001
+			
+			y un tile completo sería algo así:
+			10000000   	10000000   	10000000 	10000001
+			10000000   	10000000   	10000000 	10000001
+			10000000   	10000000   	10000000 	10000001
+			10000000   	10000000   	10000000 	10000001
+			10000000   	10000000   	10000000 	10000001
+			10000000   	10000000   	10000000 	10000001
+			10000000   	10000000   	10000000 	10000001
+			10000000   	10000000   	10000000 	10000001
+
+			En código sería así:
+			.db $3C,$00,$00,$00,$66,$00,$00,$00,
+				$60,$00,$00,$00,$60,$00,$00,$00
+			.db $60,$00,$00,$00,$66,$00,$00,$00,
+				$3C,$00,$00,$00,$00,$00,$00,$00
+
+		-  TOTAL TILES: 448. Cada tile tiene 32 bytes -> 448 x 32 = 14.336 bytes dedicados a tiles para BG y sprites
+   
+         Sprite/tile patterns, 256..447.
+
+		($2000)
+
+         Sprite/tile patterns, 0..255		
+
+   $0000 ---------------------------------------------------------------

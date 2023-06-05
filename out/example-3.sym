@@ -1,0 +1,95 @@
+; this file was created with wlalink by ville helin <ville.helin@iki.fi>.
+; wla symbolic information for "..\out\example-3.sms".
+
+[information]
+version 2
+
+[labels]
+00:c000 VDPStatus
+00:c001 Scroll
+00:c002 RealScroll
+00:c003 BgScroll
+00:c005 TileMapIndex
+00:c007 TileMapAddressIndex
+00:c009 BgWidth
+00:c00b Controller
+00:c00c ScrollHorizontalSpeed
+00:2a3a LoadVRAM
+00:2a2f FillMemory
+00:2a45 SetRegister
+00:0029 WaitForFrameInterrupt
+00:0047 ClearRam
+00:0068 main
+00:00c2 Loop
+00:00d3 TurnOnscreen
+00:00e4 InitTileMapIndex
+00:00f1 MoveScroll
+00:00fc ResetRealScroll
+00:0100 setScreen
+00:0102 setScreenLoop
+00:012d CopyScrollBlock
+00:0158 ResetBgSroll
+00:0161 DontCopyBlocks
+00:0162 CopyBlocks
+00:0174 CopyBlocksLoop
+00:01a4 GetCtrl
+00:01ac ButtonHandle
+00:01bc _MoveLe
+00:01bd _MoveRi
+00:01be VdpInitData
+00:01d0 VdpInitDataEnd
+00:01d0 TileMap
+00:1fd0 TileMapEnd
+00:1fd0 BGPaletteData
+00:1fde SpritePaletteData
+00:1fee TileSet
+00:2a0e TileSetEnd
+00:001c *WLA_SDSC_PRG_AUTHOR_PTR
+00:0009 *WLA_SDSC_PRG_NAME_PTR
+00:2a0e *WLA_SDSC_PRG_NOTES_PTR
+00:c000 RAM_USAGE_SLOT_1_BANK_0_START
+00:c00c RAM_USAGE_SLOT_1_BANK_0_END
+
+[definitions]
+00000001 _sizeof_VDPStatus
+00000001 _sizeof_Scroll
+00000001 _sizeof_RealScroll
+00000002 _sizeof_BgScroll
+00000002 _sizeof_TileMapIndex
+00000002 _sizeof_TileMapAddressIndex
+00000002 _sizeof_BgWidth
+00000001 _sizeof_Controller
+00000001 _sizeof_ScrollHorizontalSpeed
+0000000b _sizeof_LoadVRAM
+0000000b _sizeof_FillMemory
+00000008 _sizeof_SetRegister
+0000000e _sizeof_WaitForFrameInterrupt
+0000001f _sizeof_ClearRam
+00000004 _sizeof_*WLA_SDSC_PRG_AUTHOR_PTR
+00000013 _sizeof_*WLA_SDSC_PRG_NAME_PTR
+00000021 _sizeof_*WLA_SDSC_PRG_NOTES_PTR
+0000000c _sizeof_RAM_USAGE_SLOT_1_BANK_0_START
+0000005a _sizeof_main
+00000011 _sizeof_Loop
+00000011 _sizeof_TurnOnscreen
+0000000d _sizeof_InitTileMapIndex
+0000000b _sizeof_MoveScroll
+00000004 _sizeof_ResetRealScroll
+00000002 _sizeof_setScreen
+0000002b _sizeof_setScreenLoop
+0000002b _sizeof_CopyScrollBlock
+00000009 _sizeof_ResetBgSroll
+00000001 _sizeof_DontCopyBlocks
+00000012 _sizeof_CopyBlocks
+00000030 _sizeof_CopyBlocksLoop
+00000008 _sizeof_GetCtrl
+00000010 _sizeof_ButtonHandle
+00000001 _sizeof__MoveLe
+00000001 _sizeof__MoveRi
+00000012 _sizeof_VdpInitData
+00000000 _sizeof_VdpInitDataEnd
+00001e00 _sizeof_TileMap
+00000000 _sizeof_TileMapEnd
+0000000e _sizeof_BGPaletteData
+00000010 _sizeof_SpritePaletteData
+00000a20 _sizeof_TileSet

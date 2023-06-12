@@ -11,7 +11,7 @@ CopyScrollBlock:
     ld a,(ScrollStatus)
     ; Si hemos llegado aquí, quiere decir que tenemos que copiar bloques
     bit 3,a
-    jp z, CopyAndUpdate
+    jp z, OnlyCopy
     bit 0,a
     jp z, UpdateAndCopy
     bit 2,a
@@ -114,6 +114,11 @@ CopyBlocksLoop:
     sub 1
     jp nz,CopyBlocksLoop
     ret
+
+OnlyCopy:
+    call CopyBlocks
+    ;call UpdateScrollIndexes
+    jp CheckBGLimits
 
 CopyAndUpdate:
     call CopyBlocks

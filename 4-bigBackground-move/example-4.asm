@@ -93,10 +93,20 @@
     ; Bit 6: Limite superior
     ; Bit 5: Límite derecho
     ; Bit 4: Límite izquierdo
+    ; Bit 3: scroll zero
+    ; Bit 2: Dirección derecha
+    ; Bit 1: Dirección arriba 
+    ; Bit 0: Dirección izquierda
+    ActionStatus db     ;TODO aqui guardaremos flags:
+    ; Bit 7: Limite inferior
+    ; Bit 6: Limite superior
+    ; Bit 5: Límite derecho
+    ; Bit 4: Límite izquierdo
     ; Bit 3: Copiar bloques
     ; Bit 2: Dirección derecha
     ; Bit 1: Dirección arriba 
     ; Bit 0: Dirección izquierda
+
 .ends
 
 
@@ -169,12 +179,13 @@ main:
     ld bc,ONE_PALETTE_SIZE
     call LoadVRAM
 
-    ;-----------
+    ;==============================================================
+    ; Init scrollStatus and actionStatus byte
+    ;==============================================================
     ld a,0
     or a,%11111111
     ld (ScrollStatus),a
-    ;----------- 
-
+    ld (ActionStatus),a
 
     ;==============================================================
     ; Load tiles (tileSet)
@@ -191,18 +202,24 @@ main:
     ld a,0
     ld b,VDP_HORIZONTAL_SCROLL_REGISTER
     call SetRegister
-    ;----------------------------------------
 
-    ; Set the background
+    ;==============================================================
+    ; Init InitTileMapIndex
+    ;==============================================================
     call setScreen
     call InitTileMapIndex
 
+    ;==============================================================
+    ; Init IndexScrollScreen & IndexBgScroll
+    ;==============================================================
     ld a,0
     ld (IndexScrollScreen),a
     ld hl,ROW_OF_SCREEN
     ld (IndexBgScroll),hl
 
+    ;==============================================================
     ; Turn on the screen
+    ;==============================================================
     call TurnOnscreen
 
 Loop:
@@ -221,8 +238,6 @@ Loop:
     ld b,VDP_HORIZONTAL_SCROLL_REGISTER
     call SetRegister
     jp Loop  
-
-CheckScroll:
     ret
 
 TurnOnscreen:
@@ -235,67 +250,6 @@ TurnOnscreen:
     call SetRegister
     ei
     ret    
-
-SetScrollStatus:
-    call ScrollNoMovement
-    ld a,(Controller)
-    bit PLAYER1_JOYSTICK_LEFT,a
-    call z, ScrollDirectionLeft
-    bit PLAYER1_JOYSTICK_RIGHT,a
-    call z, ScrollDirectionRight
-    ret
-
-ScrollNoMovement:
-    ld a,(ScrollStatus)
-    or a,%00000101
-    ld (ScrollStatus),a
-    ret
-
-ScrollDirectionLeft:
-    ld a,(ScrollStatus)
-    and a,%11111110
-    ld (ScrollStatus),a
-    ret
-
-ScrollDirectionRight:
-    ld a,(ScrollStatus)
-    and a,%11111011
-    ld (ScrollStatus),a
-    ret
-
-InitTileMapIndexInVisibleColumns:
-    ld hl,TileMap
-    ld (TileMapIndex),hl
-    ld hl,TILEMAP_ADDRESS_INIT
-    ld (TileMapAddressIndex),hl
-    ret
-
-InitTileMapIndex:
-    ld hl,TileMap
-    ld (TileMapIndex),hl
-    ld hl,TILEMAP_ADDRESS
-    ld (TileMapAddressIndex),hl
-    ret
-
-MoveScroll:
-    ld a,(ScrollStatus)
-    bit 0,a
-    jp z, AddScroll
-    bit 2,a
-    jp z, SubScroll
-    
-    ; Si no se han presionado botones, no hace falta checkear final de pantalla
-    ld a,(Scroll)
-    jp NoResetIndexScrollScreen
-
-CheckEndScreen:
-    jp nz,NoResetIndexScrollScreen
-    ;Si entra aquí, se indica si ya se ha pintado la pantalla entera. 
-    ;La variable Scroll ha llegado a 0 (va decrementandose de ff a 0). Ponemos el indice del tile a pintar al principio.
-    ld (IndexScrollScreen),a
-NoResetIndexScrollScreen:
-    ld (Scroll),a
-    ret
 
 setScreen:
     call InitTileMapIndexInVisibleColumns
@@ -327,166 +281,6 @@ setScreenLoop:
     pop af ; Get the rowcount
     sub 1
     jp nz,setScreenLoop
-    ret
-
-AllowCopyBlocks:
-    ld a,(ScrollStatus)
-    or a,%00001000
-    ld (ScrollStatus),a
-    ret
-
-NotAllowCopyBlocks:
-    ld a,(ScrollStatus)
-    and a,%11110111
-    ld (ScrollStatus),a
-    ret
-
-SubScroll:
-    ld a,(Scroll)
-    sub SCROLL_HORIZONTAL_SPEED
-    jp CheckEndScreen
-
-AddScroll:
-    ld a,(Scroll)
-    add SCROLL_HORIZONTAL_SPEED
-    jp CheckEndScreen
-
-CopyScrollBlock:
-    ld a,(Scroll)
-    and %111 ; Se comprueba que el scroll sea multiplo de 8. Si no es así, no copia tiles, pero permite que se pueda volver a copiar en un futuro cuando sea multiplo
-    jp nz,DontCopyBlocksButAllow
-
-    ; Si si ha sido multiplo, hay que comprobar que no haya bloqueo de copia de tiles (quiere decir que ya se han copiado. Para casos de estar parado cuando se es multiplo de 8)
-    ld a,(ScrollStatus)
-    bit 3,a
-    jp z, DontCopyBlocks
-
-    ; Si hemos llegado aquí, quiere decir que tenemos que copiar bloques
-    bit 0,a
-    jp z, UpdateAndCopy
-    bit 2,a
-    jp z, UpdateAndCopy
-    call CopyAndUpdate
-CheckBGLimits:
-    ;------------------------------
-    ;call UpdateScrollIndexes
-    ;------------------------------
-
-    ; Estamos en el caso de que hay que refrescar la columna de tiles
-    ;call CopyBlocks
-    ; A la salida de copiar bloques, debemos actualizar los indices:
-    ; - IndexScrollScreen: indice que recorre las columnas mostradas en pantalla (0-40)
-    ; - IndexBgScroll: Indice que recorre el BG entero  de tamaño BG_WIDTH
-
-        ;TODO Aquí va a estar la wea...
-
-    ;Si llega al final de la longitud del mapa en memoria, empieza de nuevo
-
-    or a ;clear carry flag
-    ld hl,(IndexBgScroll)
-    ld de,BG_WIDTH
-    sbc hl,de
-    jr nc,ResetIndexBgScroll   ;IndexBgScroll >= BG_WIDTH
-    ret ;BG_WIDTH > IndexBgScroll
-ResetIndexBgScroll:
-    ld e,0
-    ld d,0
-    ld (IndexBgScroll),de
-    ret
-DontCopyBlocksButAllow:
-    call AllowCopyBlocks
-DontCopyBlocks:
-    ret
-
-CopyAndUpdate:
-    call CopyBlocks
-    call UpdateScrollIndexes
-    jp CheckBGLimits
-
-UpdateAndCopy:
-    call UpdateScrollIndexes
-    call CopyBlocks
-    jp CheckBGLimits
-
-UpdateScrollIndexes:
-    ld a,(ScrollStatus)
-    bit 0,a
-    jp z, SubScrolls
-    bit 2,a
-    call z, AddScrolls
-ContinueUpdating:
-    ret
-
-AddScrolls:
-    ld a,(IndexScrollScreen)
-    add 2
-    ld (IndexScrollScreen),a
-    ld ix,(IndexBgScroll)
-    inc ix
-    inc ix
-    ld (IndexBgScroll),ix
-    ret
-
-SubScrolls:
-    ld a,(IndexScrollScreen)
-    sub 2
-    ld (IndexScrollScreen),a
-    ld ix,(IndexBgScroll)
-    dec ix
-    dec ix
-    ld (IndexBgScroll),ix
-    jp ContinueUpdating
-
-CopyBlocks:
-    call NotAllowCopyBlocks
-    call InitTileMapIndex
-
-    ;Aquí vamos a indicar en el mapa de tiles que se muestran por pantalla, la nueva columna a rellenar 
-
-    ld hl,(TileMapAddressIndex) ; Indice de donde empieza la dirección de la tabla de tiles que se muestra en pantalla
-    ld a,(IndexScrollScreen) ; Indice de por donde va el scroll real
-    ld e,a
-    ld d,0
-    add hl,de   ; Añade offset del scroll real para que copie en la posición correcta en vram los bloques del mapa completo en el siguiente paso
-    ld (TileMapAddressIndex),hl
-    ld a,SCREEN_HEIGHT_TILES    ; Contador de lineas vertical
-CopyBlocksLoop:
-    push af ; Salvar el contador
-    ld hl,(TileMapAddressIndex)
-    PrepareVram
-
-    ; Copiamos el tile que corresponde del mapa completo
-    ld hl,(TileMapIndex)
-
-    ;TODO ------------------------------------
-    ;Meter lógica si es para derecha/izquierda
-    ;IndexBGScroll debe apuntar a final o al principio..
-    ;-----------------------------------------
-    call CalculatePointerBgScroll
-    ;-----------------------------------------
-    ; Copiamos el tile que corresponde del mapa completo
-    ld hl,(TileMapIndex)
-    ld de,(PointerBgScroll) ; Añade el offset del puntero hacia el mapa completo
-    add hl,de
-    ld bc,2  ; Counter for number of bytes to write
-    call LoadVRAM
-
-    ; Pasamos a apuntar a la siguiente fila del mapa completo
-    ld hl,(TileMapIndex)
-    ld bc,BG_WIDTH
-    add hl,bc
-    ld (TileMapIndex),hl
-
-    ; Apuntamos a la siguiente fila del mapa en la vram
-    ld hl,(TileMapAddressIndex)
-    ld e,ROW_OF_SCREEN    ; DE = A
-    ld d,0
-    add hl,de
-    ld (TileMapAddressIndex),hl
-
-    pop af ; Obtener el contador
-    sub 1
-    jp nz,CopyBlocksLoop
     ret
 
 CalculatePointerBgScroll:
@@ -563,3 +357,6 @@ SpritePaletteData:
 TileSet:
     .include "inc/art/tileSets/bgTileSet.inc"
 TileSetEnd:
+.include "inc/support/tileFunctions.asm" ; General/supporting routines.
+.include "inc/support/copyBlockFunctions.asm"
+.include "inc/support/scrollFunctions.asm"

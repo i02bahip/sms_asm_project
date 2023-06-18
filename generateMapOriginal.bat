@@ -24,11 +24,21 @@ goto :showParams
     goto EndParams
 :EndParams
 
-call generateMapOriginal.bat %1
-call build.bat %1
-call run.bat %1
+set BMP2TILE="environment\utils\bmp2tile\BMP2Tile.exe"
+if exist %folder%\inc\art\tileMaps\bg*.inc del %folder%\inc\art\tileMaps\bg*.inc
+if exist %folder%\inc\art\palettes\bg*.inc del %folder%\inc\art\palettes\bg*.inc
+if exist %folder%\inc\art\tileSets\bg*.inc del %folder%\inc\art\tileSets\bg*.inc
+
+%BMP2TILE% "%folder%\inc\art\backgroundImage\tilemap_limits.png" -savetiles "%folder%\inc\art\tileSets\bgTileSet.inc" -savepalette "%folder%\inc\art\palettes\bgPalette.inc" -savetilemap "%folder%\inc\art\tileMaps\bgTileMap.inc" -exit
 if errorlevel 1 goto :fail
-goto :done
+goto:done
+
+:endProcess
+goto:eof
+
+:fail
+echo Map generation failed!
+goto:endProcess
 
 :showParams
 echo Wrong param: "%1"
@@ -43,4 +53,7 @@ echo 4: big background move
 echo ----------------------------
 echo Example for build example 0: 
 echo build 0
-goto:eof
+goto:endProcess
+
+:done
+echo Palette, tileset and tilemap generated successfully!

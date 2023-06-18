@@ -41,7 +41,8 @@
 .define TEST 6
 .define BG_WIDTH 160*2
 .define BG_FULL 160*24
-.define ROW_OF_SCREEN 32*2
+.define ROW_OF_SCREEN 31*2
+.define ROW_OF_SCREEN_FULL 32*2
 .define VISIBLE_PART_OF_SCREEN 32*24*2
 .define VDP_HORIZONTAL_SCROLL_REGISTER 8
 .define SCROLL_HORIZONTAL_SPEED 1
@@ -273,7 +274,7 @@ setScreenLoop:
 
     ;pointing new row in screen
     ld hl,(TileMapAddressIndex)
-    ld e,ROW_OF_SCREEN    ; DE = A
+    ld e,ROW_OF_SCREEN_FULL    ; DE = A
     ld d,0
     add hl,de
     ld (TileMapAddressIndex),hl
@@ -281,6 +282,20 @@ setScreenLoop:
     pop af ; Get the rowcount
     sub 1
     jp nz,setScreenLoop
+    ret
+
+InitTileMapIndex:
+    ld hl,TileMap
+    ld (TileMapIndex),hl
+    ld hl,TILEMAP_ADDRESS
+    ld (TileMapAddressIndex),hl
+    ret
+
+InitTileMapIndexInVisibleColumns:
+    ld hl,TileMap
+    ld (TileMapIndex),hl
+    ld hl,TILEMAP_ADDRESS_INIT
+    ld (TileMapAddressIndex),hl
     ret
 
 CalculatePointerBgScroll:

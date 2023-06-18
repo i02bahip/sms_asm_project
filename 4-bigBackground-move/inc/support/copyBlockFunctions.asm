@@ -105,7 +105,7 @@ CopyBlocksLoop:
 
     ; Apuntamos a la siguiente fila del mapa en la vram
     ld hl,(TileMapAddressIndex)
-    ld e,ROW_OF_SCREEN    ; DE = A
+    ld e,ROW_OF_SCREEN_FULL    ; DE = A
     ld d,0
     add hl,de
     ld (TileMapAddressIndex),hl

@@ -5,6 +5,7 @@ IF "%1"=="1" goto No1
 IF "%1"=="2" goto No2
 IF "%1"=="3" goto No3
 IF "%1"=="4" goto No4
+IF "%1"=="5" goto No5
 goto :showParams
 
 :No0
@@ -22,7 +23,11 @@ goto :showParams
 :No4
     set folder="4-bigBackground-move"
     goto EndParams
+:No5
+    set folder="5-bigBackground-move2"
+    goto EndParams
 :EndParams
+
 
 cd %folder%
 ..\environment\compiler\wla-dx\bin\x86\wla-z80 -v -o ..\out\main.o example-%1.asm
@@ -46,6 +51,7 @@ echo 1: hello world
 echo 2: background
 echo 3: big background
 echo 4: big background move
+echo 5: big background move2
 echo ----------------------------
 echo Example for build example 0: 
 echo build 0

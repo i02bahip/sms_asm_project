@@ -1,4 +1,79 @@
 ==========
+2023-06-01
+==========
+- Added Step Back Over action to the debugger
+- Fixed an issue with the Step Back Return action
+
+==========
+2023-05-31
+==========
+- Added a disassembler setting to pad mnemonics (thanks to Kak)
+- Added a proper error if a debugfile ends unexpectedly (thanks to leina)
+- Added selection of tile base address to Tilemap Viewer (thanks to leina)
+- Added Step Back Return action to the debugger
+- Added Run Backwards To Line action to the debugger
+- Allow changing sound buffer size without realod (thanks to Zumi)
+- Fixed that sometimes execution broke twice on a line breakpoint
+- Fixed that for more complex expressions the tooltip text did not display correct values (thanks to ISSOtm)
+- Fixed a regression where sometimes a line breakpoint could not be set on a line in a high bank (thanks to arnaud33200)
+- Fixed that on some Linux systems sound randomly silenced (thanks to Zumi)
+- Fixed that sometimes exception breakpoints would point to the line after the exception happened (thanks to CeL)
+
+==========
+2023-04-22
+==========
+- Added Step Back to the debugger
+- Fixed misdetection of dahjee adapter in Pop Flamer for SG-1000 (thanks to Saverio Russo)
+
+==========
+2023-04-06
+==========
+- Added variable for Game Boy's Wave Pattern RAM (thanks to ISSOtm)
+- Added variable for Game Boy's internal window line counter
+- Fixed an issue where the state of the Game Boy's timer didn't get saved properly into savestates (thanks to 256 and ProstatePunch)
+- Fixed that a watchpoint on WRAM address $c000 could break on a write to $ff80 (thanks to ISSOtm)
+- Fixed an issue with banked vs. unbanked symbols in debugfiles (thanks to ax6)
+
+==========
+2023-03-31
+==========
+- Added an exception that triggers for an incorrect Game Boy cartridge header (thanks to leina)
+- Added missing register annotations in Memory Editor for Game Boy's HRAM (thanks to ISSOtm)
+- Added some more variables for Game Boy, most notably APU variables (thanks to ISSOtm)
+- Improved wording in table headers of profiler (thanks to ISSOtm)
+- Fixed that if the status bar of the Memory Editor grows after selection, it could hide the selected address
+- Fixed that for Mastersystem VRAM write events the old and new value were swapped (thanks to Aissen)
+- Fixed a regression that could cause unsigned variables in remote debugging to be displayed with signed values (thanks to MyNewSoundtrack)
+- Fixed a regression that could cause wrong breakpoints to be added when double-clicking the ruler on banked code (thanks to purple tissue box)
+- Fixed a bug where the disassembler did not amend an instruction on a sub-instruction boundary (thanks to ISSOtm)
+
+==========
+2023-02-28
+==========
+- Added support for debugfiles (thanks to ax6 and ISSOtm)
+- Added options for font anti aliasing (thanks to ISSOtm)
+- Made most variables in the Variables tab editable (thanks to leina)
+- Made the Memory Editor reduce the spacing between bytes if Show Registers is disabled (thanks to ISSOtm)
+- Improved invalid VDP access exception to catch a case that hadn't been caught yet (thanks to sverx)
+- Fixed a crash that could be caused by cheats (thanks to Revo)
+- Fixed an issue that had caused memory mapped ports to not be displayed using their names (thanks to ISSOtm)
+- Fixed an issue in the Memory Tracer that could make it display an incorrect source for WRAM (thanks to ISSOtm)
+- Fixed the tooltip shown when hovering hli (thanks to ISSOtm)
+- Fixed an issue that could cause the disassembler to timeout too quickly when remote debugging (thanks to pokeglitch)
+- Fixed the mnemonic used for the ldh opcode using the c register (thanks to ax6)
+- Fixed that code didn't get amended when its being executed on a sub-instruction byte (thanks to ISSOtm and Maxim)
+- Fixed color of caret in dark mode if OS uses light mode
+- Fixed an issue in the Sprite Viewer that could falsly display sprites as 8x16 (thanks to 256)
+
+==========
+2023-01-31
+==========
+- Added tooltips to breakpoints table (thanks to lestar)
+- Added an option to control whether .sav files should be saved next to the roms or not (thanks to Kuro)
+- Improved breakpoint management (thanks to 256)
+- Fixed a few issues in the disassembler (thanks to bankbank)
+
+==========
 2022-12-30
 ==========
 - Added support for Gamepads on M1 Macs (thanks to mattcurrie)

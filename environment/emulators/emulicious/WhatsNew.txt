@@ -1,4 +1,21 @@
 ==========
+2023-06-30
+==========
+- Fixed an issue where the Reference Hierarchy could display null as a label
+- Fixed an issue with RAM symbols defined in the disassembly if an RBGDS map file is loaded
+- Fixed a rendering issue of the CPU usage graph in dark theme
+- Fixed that loading a GBC rom with the Tile Viewer open caused the list of palettes to be limitted to DMG palettes (thanks to leina)
+- Fixed a bug that could cause the disassembly to not get amended properly (thanks to Zumi)
+- Fixed crackling sound when throttle is not 100% (thanks to Zumi)
+- Fixed missing dot numbers for some IRQs (thanks to Trirosmos and sono)
+- Fixed that cheats did not work while debugging (thanks to Antígeno)
+- Fixed that the displayed ROM bank number wasn't masked (thanks to Antígeno)
+- Fixed a bug that could make the GUI cause a wave RAM corruption exception (thanks to ISSOtm and Evie)
+- Reduced input latency with gamepads (thanks to Kabcorp)
+- Improved debugging of MSXgl projects (thanks to aoineko)
+- Improved performance of syntax highlighting (thanks to superdisk)
+
+==========
 2023-06-01
 ==========
 - Added Step Back Over action to the debugger

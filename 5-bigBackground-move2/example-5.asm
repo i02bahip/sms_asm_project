@@ -39,6 +39,7 @@
 .define TILEMAP_ADDRESS_INIT $3802
 .define SCREEN_HEIGHT_TILES 24
 .define TEST 6
+.define BG_TILES_WIDTH 128*2
 .define BG_WIDTH 160*2
 .define BG_FULL 160*24
 .define ROW_OF_SCREEN 31*2
@@ -84,7 +85,7 @@
     VDPStatus db        ; Gets updated by the frame int. handler.
     Scroll db           ; Scroll horizontal: va de forma descendente de FF a 00 de 1 en 1
     IndexScrollScreen db       ; Indice de Scroll por tiles en pantalla: va de forma ascendente de 00 a 40 de dos en dos (2 bytes  = tile). Indica el tile a pintar
-    IndexBgScroll dw           ; Indice de Scroll por tiles en el background entero.
+    IndexBgScroll dw           ; Indice de Scroll por tiles en el background entero. Va de forma ascendente de 00 a .
     PointerBgScroll dw         ; Apuntará al final del bgscroll o a bgScroll - tamaño de pantalla dependiendo si vamos a derecha o izquierda
     TileMapIndex dw         ;Dirección del tilemap en memoria
     TileMapAddressIndex dw ;Dirección de la tabla que define lo que se ve en la pantalla
@@ -99,14 +100,14 @@
     ; Bit 1: Dirección arriba 
     ; Bit 0: Dirección izquierda
     ActionStatus db     ;TODO aqui guardaremos flags:
-    ; Bit 7: Limite inferior
-    ; Bit 6: Limite superior
-    ; Bit 5: Límite derecho
-    ; Bit 4: Límite izquierdo
+    ; Bit 7: -
+    ; Bit 6: -
+    ; Bit 5: -
+    ; Bit 4: -
     ; Bit 3: Copiar bloques
-    ; Bit 2: Dirección derecha
-    ; Bit 1: Dirección arriba 
-    ; Bit 0: Dirección izquierda
+    ; Bit 2: -
+    ; Bit 1: -
+    ; Bit 0: -
 
 .ends
 
@@ -310,7 +311,7 @@ InitTileMapIndexInVisibleColumns:
     ld (TileMapAddressIndex),hl
     ret
 
-;---------------------------------
+;----- FUNCIONES SCROLL ----------------------------
 
 MoveScroll:
     ld a,(ScrollStatus)
@@ -319,6 +320,15 @@ MoveScroll:
     bit 2,a
     jp z, SubScroll
 ContinueScroll:
+    ld a,(Scroll)
+    jp z,SetScrollZero
+    call NoScrollZero
+NoSetScrollZero:
+    ret
+
+resetIndexScrollScreen:
+    ld a,0
+    ld (IndexScrollScreen),a
     ret
 
 SubScroll:
@@ -332,8 +342,9 @@ AddScroll:
     add SCROLL_HORIZONTAL_SPEED
     ld (Scroll),a
     jp ContinueScroll
+    ;----------------------------------------------------------------
 
-;---------------------------------------
+;----------- FUNCIONES COPIAR TILES ----------------------------
 CopyScrollBlock:
     ld a,(Scroll)
     and %111 ; Se comprueba que el scroll sea multiplo de 8. Si no es así, no copia tiles, pero permite que se pueda volver a copiar en un futuro cuando sea multiplo
@@ -344,14 +355,26 @@ CopyScrollBlock:
     bit 3,a
     jp z, DontCopyBlocks
 
+    ; Si ha llegado aquí, quiere decir que no había bloqueo de copia de tiles, y que toca copiar tiles.
+    call UpdateAndCopy
 
-    ;TODO: Aquí siempre entra. Debería entrar solo cuando el scroll sea multiplo de 8 y no haya bloqueo de copia de tiles
-
-    call CopyBlocks
+    jp DontCopyBlocks
     
 DontCopyBlocksButAllow:
     call AllowCopyBlocks
 DontCopyBlocks:
+    ret
+
+SetScrollZero:
+    ld a,(ScrollStatus)
+    and a,%11110111
+    ld (ScrollStatus),a
+    jp NoSetScrollZero
+
+NoScrollZero:
+    ld a,(ScrollStatus)
+    or a,%00001000
+    ld (ScrollStatus),a
     ret
 
 AllowCopyBlocks:
@@ -369,11 +392,9 @@ NotAllowCopyBlocks:
 CopyBlocks:
     call NotAllowCopyBlocks
     call InitTileMapIndex
-
     ;Aquí vamos a indicar en el mapa de tiles que se muestran por pantalla, la nueva columna a rellenar 
-
     ld hl,(TileMapAddressIndex) ; Indice de donde empieza la dirección de la tabla de tiles que se muestra en pantalla
-    ld a,(IndexScrollScreen) ; Indice de por donde va el scroll real
+    ld a,(IndexScrollScreen) ; Indice de por donde va el scroll real (columna invisible)
     ld e,a
     ld d,0
     add hl,de   ; Añade offset del scroll real para que copie en la posición correcta en vram los bloques del mapa completo en el siguiente paso
@@ -384,15 +405,6 @@ CopyBlocksLoop:
     ld hl,(TileMapAddressIndex)
     PrepareVram
 
-    ; Copiamos el tile que corresponde del mapa completo
-    ld hl,(TileMapIndex)
-
-    ;TODO ------------------------------------
-    ;Meter lógica si es para derecha/izquierda
-    ;IndexBGScroll debe apuntar a final o al principio..
-    ;-----------------------------------------
-    ;call CalculatePointerBgScroll
-    ;-----------------------------------------
     ; Copiamos el tile que corresponde del mapa completo
     ld hl,(TileMapIndex)
     ld de,(PointerBgScroll) ; Añade el offset del puntero hacia el mapa completo
@@ -418,6 +430,51 @@ CopyBlocksLoop:
     jp nz,CopyBlocksLoop
     ret
 
+UpdateAndCopy:
+    call UpdateScrollIndexes
+    call CopyBlocks
+    ret
+
+UpdateScrollIndexes:
+    ld a,(ScrollStatus)
+    bit 0,a
+    jp z, SubScrolls
+    bit 2,a
+    jp z, AddScrolls
+ContinueUpdating:
+    ld a,(ScrollStatus)
+    bit 3,a
+    call z, resetIndexScrollScreen
+    call CalculatePointerBgScroll
+    ret
+
+AddScrolls:
+    ld a,(IndexScrollScreen)
+    add 2
+    ld (IndexScrollScreen),a
+    ld ix,(IndexBgScroll)
+    inc ix
+    inc ix
+    ld (IndexBgScroll),ix
+    jp ContinueUpdating
+
+SubScrolls:
+    ld a,(IndexScrollScreen)
+    sub 2
+    ld (IndexScrollScreen),a
+    ld ix,(IndexBgScroll)
+    dec ix
+    dec ix
+    ld (IndexBgScroll),ix
+    jp ContinueUpdating
+
+CalculatePointerBgScroll:
+    ld hl,(IndexBgScroll)
+    ld e,ROW_OF_SCREEN
+    ld d,0
+    add hl,de
+    ld (PointerBgScroll), hl
+    ret
 ;-----------------------------------
 
 
@@ -430,10 +487,6 @@ GetCtrl:
 ButtonHandle:
     push af
     ld a,[Controller]
-    ;bit PLAYER1_JOYSTICK_UP,a
-    ;call z, _MoveUp
-    ;bit PLAYER1_JOYSTICK_DOWN,a
-    ;call z, _MoveDo
     bit PLAYER1_JOYSTICK_LEFT,a
     call z, _MoveLe
     bit PLAYER1_JOYSTICK_RIGHT,a

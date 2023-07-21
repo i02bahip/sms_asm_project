@@ -103,11 +103,11 @@
     ; Bit 7: -
     ; Bit 6: -
     ; Bit 5: -
-    ; Bit 4: -
+    ; Bit 4: Cambio de dirección
     ; Bit 3: Copiar bloques
-    ; Bit 2: -
+    ; Bit 2: - Ultima direccion derecha
     ; Bit 1: -
-    ; Bit 0: -
+    ; Bit 0: - Ultima direccion izquierda
 
 .ends
 
@@ -227,17 +227,20 @@ Loop:
     jp Loop  
     ret
 
+
 SetScrollStatus:
     call ScrollNoMovement
     ld a,(Controller)
     bit PLAYER1_JOYSTICK_LEFT,a
-    call z, ScrollDirectionLeft
+    jp z,ScrollDirectionLeft
     bit PLAYER1_JOYSTICK_RIGHT,a
-    call z, ScrollDirectionRight
+    jp z,ScrollDirectionRight
+ContinueScrollStatus:
     ret
 
 ScrollNoMovement:
     ld a,(ScrollStatus)
+
     or a,%00000101
     ld (ScrollStatus),a
     ret
@@ -246,12 +249,30 @@ ScrollDirectionLeft:
     ld a,(ScrollStatus)
     and a,%11111110
     ld (ScrollStatus),a
-    ret
+    ld a,(ActionStatus)
+    bit 2,a
+    call z,CopyBlocksRightToLeft
+    jp ContinueScrollStatus
 
 ScrollDirectionRight:
     ld a,(ScrollStatus)
     and a,%11111011
     ld (ScrollStatus),a
+    ld a,(ActionStatus)
+    bit 0,a
+    call z,AllowCopyBlocks
+    jp ContinueScrollStatus
+
+CopyBlocksRightToLeft:
+    ld a,(Scroll)
+    and %111 ; Se comprueba que el scroll sea multiplo de 8. Si no es así, no copia tiles
+    jp nz,NotCopyBlocksRightToLeft
+    call AllowCopyBlocks
+    call CalculatePointerBgScroll2
+    call CopyBlocks
+    call LastDirectionLeft
+    ;call UpdateScrollIndexes
+NotCopyBlocksRightToLeft:
     ret
 
 TurnOnscreen:
@@ -332,16 +353,16 @@ resetIndexScrollScreen:
     ret
 
 SubScroll:
-    bit 4,a
-    jp z,NoSetScrollZero
+    bit 5,a
+    jp z,ContinueScroll
     ld a,(Scroll)
     sub SCROLL_HORIZONTAL_SPEED
     ld (Scroll),a
     jp ContinueScroll
 
 AddScroll:
-    bit 5,a
-    jp z,NoSetScrollZero
+    bit 4,a
+    jp z,ContinueScroll
     ld a,(Scroll)
     add SCROLL_HORIZONTAL_SPEED
     ld (Scroll),a
@@ -367,24 +388,6 @@ CopyScrollBlock:
 
     call UpdateAndCopy
 
-CheckScreenEnd:
-    ;Si llega al final de la longitud del mapa en memoria, empieza de nuevo
-    or a ;clear carry flag
-    ld hl,(IndexBgScroll)
-    ld de,BG_TILES_WIDTH+2
-    sbc hl,de
-    jp nc,SetReachLeft   ;IndexBgScroll >= BG_WIDTH
-
-    call UnsetReachLeft
-
-    or a ;clear carry flag
-    ld hl,(IndexBgScroll)
-    ld de,0
-    sbc hl,de
-    jp z,SetReachRight
-
-    call UnsetReachRight
-
 ContinueScrollBlock:
     jp DontCopyBlocks
     
@@ -392,6 +395,25 @@ DontCopyBlocksButAllow:
     call AllowCopyBlocks
 DontCopyBlocks:
     ret
+
+CheckScreenEnd:
+    ;Si llega al final de la longitud del mapa en memoria, empieza de nuevo
+    or a ;clear carry flag
+    ld hl,(IndexBgScroll)
+    ld de,BG_TILES_WIDTH+2
+    sbc hl,de
+    jp nc,SetReachRight   ;IndexBgScroll >= BG_WIDTH
+
+    call UnsetReachRight
+
+    or a ;clear carry flag
+    ld hl,(IndexBgScroll)
+    ld de,0
+    sbc hl,de
+    jp z,SetReachLeft
+
+    call UnsetReachLeft
+    ret    
 
 SetScrollZero:
     ld a,(ScrollStatus)
@@ -441,6 +463,20 @@ NotAllowCopyBlocks:
     ld (ActionStatus),a
     ret
 
+LastDirectionLeft:
+    ld a,(ActionStatus)
+    and a,%11111110
+    or a,%00000100
+    ld (ActionStatus),a
+    ret
+
+LastDirectionRight:
+    ld a,(ActionStatus)
+    and a,%11111011
+    or a,%00000001
+    ld (ActionStatus),a
+    ret
+
 CopyBlocks:
     call NotAllowCopyBlocks
     call InitTileMapIndex
@@ -482,16 +518,24 @@ CopyBlocksLoop:
     jp nz,CopyBlocksLoop
     ret
 
+;TODO Arreglar esto: Avanzar dos veces y pico a la derecha. Retroceder a la izquierda, y volver a retroceder a la izquierda. Cuando llegas al límite, 
+;copia en la primera columna lo ultimo del BG. Debe copiar inicio de BG + tamaño de pantalla, tal y como se hace al principio.
+
 CopyAndUpdate:
+    ld a,(ActionStatus)
+    bit 2,a
+    call nz, UpdateScrollIndexes
     call CalculatePointerBgScroll2
     call CopyBlocks
-    call UpdateScrollIndexes
-    jp CheckScreenEnd
+    call LastDirectionLeft
+    call CheckScreenEnd
+    jp ContinueScrollBlock
 
 UpdateAndCopy:
     call UpdateScrollIndexes
     call CalculatePointerBgScroll2
     call CopyBlocks
+    call CheckScreenEnd
     ret
 
 UpdateScrollIndexes:
@@ -507,6 +551,7 @@ ContinueUpdating:
     ret
 
 AddScrolls:
+    call LastDirectionRight
     ld a,(IndexScrollScreen)
     add 2
     ld (IndexScrollScreen),a
@@ -517,6 +562,7 @@ AddScrolls:
     jp ContinueUpdating
 
 SubScrolls:
+    call LastDirectionLeft
     ld a,(IndexScrollScreen)
     sub 2
     ld (IndexScrollScreen),a

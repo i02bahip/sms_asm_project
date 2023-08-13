@@ -19,14 +19,14 @@ ScrollNoMovement:
 
 ScrollDirectionLeft:
     ld a,(ScrollStatus)
-    or a,%00000101
+    or a,%00100101
     and a,%11111110
     ld (ScrollStatus),a
     jp ContinueScrollStatus
 
 ScrollDirectionRight:
     ld a,(ScrollStatus)
-    or a,%00000101
+    or a,%00010101
     and a,%11111011
     ld (ScrollStatus),a
     jp ContinueScrollStatus

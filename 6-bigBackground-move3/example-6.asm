@@ -183,7 +183,6 @@ main:
     or a,%11111111
     ld (ScrollStatus),a
     ld (ActionStatus),a
-    call UnsetCopyBlocks
 
 ;==============================================================
 ; Load tiles (tileSet)
@@ -211,14 +210,14 @@ main:
 ; Turn on the screen
 ;==============================================================
     call TurnOnscreen
-
+    call SetReachLeft
 ;==============================================================
 ; MAIN LOOP
 ;==============================================================
 Loop:
     call WaitForFrameInterrupt ; Esperamos a que se haya pintado la pantalla.
     call UpdateScroll  ;Updateamos la variable scroll.
-    call UpdateScrollStatus ;Updateamos los flags que indican direccion de scroll y si ha alcanzado algún límite
+    call UpdateScrollStatus ;Updateamos los flags que indican direccion de scroll
     call UpdateScrollIndexes ;Updateamos los indices del scroll.
     call CopyScrollBlock ;Una vez tengamos La info de Scroll, sus flags y sus indices, copiamos o no nuevos bloques
     call MoveScrollRegister ;Una vez todo esté listo, se mueve de forma real el scroll.
@@ -342,19 +341,13 @@ ContinueScrollStatus:
 ;==============================================================
 UpdateScrollIndexes:
     ld a,(Scroll)
-    and %111 ; Se comprueba que el scroll sea multiplo de 8. Si si lo es, Pone a 1 el flag de copiar bloques
-    call z,SetCopyBlocks
-
-    ;TODO siempre copia la primera columna al principio con scroll 0
-
-    ;call z,CalculateIfCopyBlocks
+    and %111 ; Se comprueba que el scroll sea multiplo de 8. Si si lo es, Checkeamos si poner a 1 el flag de copiar bloques
+    call z,CalculateIfCopyBlocks
 
     ;TODO Mejorable
     ld a,(ActionStatus)
     bit 3,a
     jp z,NoUpdateIndex
-
-    call CalculatePointerBgScroll
 
     ld a,(ScrollStatus)
     bit 0,a
@@ -365,14 +358,13 @@ ContinueUpdating:
     ld a,(ScrollStatus)
     bit 3,a
     call z, resetIndexScrollScreen
+    call CalculatePointerBgScroll
 NoUpdateIndex
     ret
 
-;// TODO No se usa
 CalculateIfCopyBlocks:
-    ld a,(Scroll)
-    add 1
-    sub 1
+    ld a,(ScrollStatus) ;Si estamos en el límite izquierdo, no seteamos el flag para copiar bloques
+    bit 4,a
     call nz,SetCopyBlocks
     ret
 
@@ -385,6 +377,7 @@ moveIndexesRight:
     inc ix
     inc ix
     ld (IndexBgScroll),ix
+    call CheckScreenEndRight
     jp ContinueUpdating
 
 moveIndexesLeft:
@@ -396,7 +389,27 @@ moveIndexesLeft:
     dec ix
     dec ix
     ld (IndexBgScroll),ix
+    call CheckScreenEndLeft
     jp ContinueUpdating
+
+CheckScreenEndRight:
+    ;Si llega al final de la longitud del mapa en memoria, empieza de nuevo
+    call UnsetReachRight
+    or a ;clear carry flag
+    ld hl,(IndexBgScroll)
+    ld de,BG_TILES_WIDTH+2
+    sbc hl,de
+    call nc,SetReachRight   ;IndexBgScroll >= BG_WIDTH
+    ret
+
+CheckScreenEndLeft:
+    call UnsetReachLeft
+    or a ;clear carry flag
+    ld hl,(IndexBgScroll)
+    ld de,0
+    sbc hl,de
+    call z,SetReachLeft
+    ret   
 
 CalculatePointerBgScroll:
     ld hl,(IndexBgScroll)

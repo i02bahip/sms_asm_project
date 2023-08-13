@@ -120,8 +120,8 @@ di              ; disable interrupts
 im 1            ; Interrupt mode 1
 ld sp,STACK_INIT_ADDRESS
 jp main         ; jump to main program
-
 ;==============================================================
+
 .org $0020               ; rst $20: Prepare vram at address in HL.
    ld a,l                ; Refer to the PrepareVram macro.
    out (VDP_CONTROL),a
@@ -150,17 +150,18 @@ jp main         ; jump to main program
 ;==============================================================
 main:
     call ClearRam
-    ;==============================================================
-    ; Set up VDP registers
-    ;==============================================================
+
+;==============================================================
+; Set up VDP registers
+;==============================================================
     ld hl,VdpInitData
     ld b,VdpInitDataEnd-VdpInitData
     ld c,VDP_CONTROL
     otir
 
-    ;==============================================================
-    ; Load palettes
-    ;==============================================================
+;==============================================================
+; Load palettes
+;==============================================================
     ;BG Palette
     ld hl,PALETTE_1_ADDRESS  ; Load the BG palette.
     PrepareVram
@@ -175,18 +176,18 @@ main:
     ld bc,ONE_PALETTE_SIZE
     call LoadVRAM
 
-    ;==============================================================
-    ; Init scrollStatus and actionStatus byte
-    ;==============================================================
+;==============================================================
+; Init scrollStatus and actionStatus byte
+;==============================================================
     ld a,0
     or a,%11111111
     ld (ScrollStatus),a
     ld (ActionStatus),a
     call UnsetCopyBlocks
 
-    ;==============================================================
-    ; Load tiles (tileSet)
-    ;==============================================================
+;==============================================================
+; Load tiles (tileSet)
+;==============================================================
     ; 1. Set VRAM write address to tile index 0
     ; by outputting $4000 ORed with $0000
     ld hl,ADDRESS_OF_FIRST_TILE
@@ -200,54 +201,33 @@ main:
     ld b,VDP_HORIZONTAL_SCROLL_REGISTER
     call SetRegister
 
-    ;==============================================================
-    ; Init InitTileMapIndex
-    ;==============================================================
+;==============================================================
+; Init InitTileMapIndex
+;==============================================================
     call setScreen
     call InitTileMapIndex
 
-    ;==============================================================
-    ; Turn on the screen
-    ;==============================================================
+;==============================================================
+; Turn on the screen
+;==============================================================
     call TurnOnscreen
 
+;==============================================================
+; MAIN LOOP
+;==============================================================
 Loop:
-    call WaitForFrameInterrupt
+    call WaitForFrameInterrupt ; Esperamos a que se haya pintado la pantalla.
     call UpdateScroll  ;Updateamos la variable scroll.
     call UpdateScrollStatus ;Updateamos los flags que indican direccion de scroll y si ha alcanzado algún límite
-    call UpdateScrollIndexes ;Updateamos los indices del scroll. TODO Meter el updateo del BG Scroll Pointer???
+    call UpdateScrollIndexes ;Updateamos los indices del scroll.
     call CopyScrollBlock ;Una vez tengamos La info de Scroll, sus flags y sus indices, copiamos o no nuevos bloques
     call MoveScrollRegister ;Una vez todo esté listo, se mueve de forma real el scroll.
     jp Loop  
     ret
 
-MoveScrollRegister:
-    ld a,(Scroll)
-    ld b,VDP_HORIZONTAL_SCROLL_REGISTER
-    call SetRegister
-    ret
-
-UpdateScrollStatus:
-    call ScrollNoMovement
-    ld a,(Controller)
-    bit PLAYER1_JOYSTICK_LEFT,a
-    jp z,ScrollDirectionLeft
-    bit PLAYER1_JOYSTICK_RIGHT,a
-    jp z,ScrollDirectionRight
-ContinueScrollStatus:
-    ret
-
-TurnOnscreen:
-    di
-    ld a,VDP_REG_0_TURN_SCREEN_ON_FULL
-    ld b,VDP_REGISTER_0_INDEX
-    call SetRegister
-    ld a,VDP_REG_1_TURN_SCREEN_ON_TALL_SPRITES
-    ld b,VDP_REGISTER_1_INDEX
-    call SetRegister
-    ei
-    ret    
-
+;==============================================================
+;----- 0) INIT FUNCTIONS ----------------------------
+;==============================================================
 setScreen:
     call InitTileMapIndexInVisibleColumns
     ld a,SCREEN_HEIGHT_TILES    ; register a is now Rowcount
@@ -280,13 +260,6 @@ setScreenLoop:
     jp nz,setScreenLoop
     ret
 
-InitTileMapIndex:
-    ld hl,TileMap
-    ld (TileMapIndex),hl
-    ld hl,TILEMAP_ADDRESS
-    ld (TileMapAddressIndex),hl
-    ret
-
 InitTileMapIndexInVisibleColumns:
     ld hl,TileMap
     ld (TileMapIndex),hl
@@ -294,8 +267,27 @@ InitTileMapIndexInVisibleColumns:
     ld (TileMapAddressIndex),hl
     ret
 
-;----- FUNCIONES SCROLL ----------------------------
+InitTileMapIndex:
+    ld hl,TileMap
+    ld (TileMapIndex),hl
+    ld hl,TILEMAP_ADDRESS
+    ld (TileMapAddressIndex),hl
+    ret
 
+TurnOnscreen:
+    di
+    ld a,VDP_REG_0_TURN_SCREEN_ON_FULL
+    ld b,VDP_REGISTER_0_INDEX
+    call SetRegister
+    ld a,VDP_REG_1_TURN_SCREEN_ON_TALL_SPRITES
+    ld b,VDP_REGISTER_1_INDEX
+    call SetRegister
+    ei
+    ret    
+
+;==============================================================
+;----- 1) UPDATE SCROLL ----------------------------
+;==============================================================
 UpdateScroll:
     ld a,(ScrollStatus)
     bit 0,a
@@ -304,6 +296,8 @@ UpdateScroll:
     jp z,updateScrollRight
 ContinueScroll:
     ld a,(Scroll)
+    add 1
+    sub 1
     jp z,SetScrollZero
     call NoScrollZero
 NoSetScrollZero:
@@ -330,23 +324,30 @@ updateScrollLeft:
     ld (Scroll),a
     jp ContinueScroll
 
-;----------- FUNCIONES COPIAR TILES ----------------------------
-CopyScrollBlock:
-    ld a,(ActionStatus)
-    bit 3,a
-    jp z, DontCopyBlocks
-
-    ; Si ha llegado aquí, quiere decir que no había bloqueo de copia de tiles, y que toca copiar tiles.
-    ;TODO Se están copiando siempre los bloques cuando empieza el programa (scroll 0)
-    call CopyBlocks
-
-DontCopyBlocks:
+;==============================================================
+;----- 2) UPDATE SCROLL STATUS ----------------------------
+;==============================================================
+UpdateScrollStatus:
+    call ScrollNoMovement
+    ld a,(Controller)
+    bit PLAYER1_JOYSTICK_LEFT,a
+    jp z,ScrollDirectionLeft
+    bit PLAYER1_JOYSTICK_RIGHT,a
+    jp z,ScrollDirectionRight
+ContinueScrollStatus:
     ret
 
+;==============================================================
+;----- 3) UPDATE SCROLL INDEXES ----------------------------
+;==============================================================
 UpdateScrollIndexes:
     ld a,(Scroll)
     and %111 ; Se comprueba que el scroll sea multiplo de 8. Si si lo es, Pone a 1 el flag de copiar bloques
     call z,SetCopyBlocks
+
+    ;TODO siempre copia la primera columna al principio con scroll 0
+
+    ;call z,CalculateIfCopyBlocks
 
     ;TODO Mejorable
     ld a,(ActionStatus)
@@ -365,6 +366,14 @@ ContinueUpdating:
     bit 3,a
     call z, resetIndexScrollScreen
 NoUpdateIndex
+    ret
+
+;// TODO No se usa
+CalculateIfCopyBlocks:
+    ld a,(Scroll)
+    add 1
+    sub 1
+    call nz,SetCopyBlocks
     ret
 
 moveIndexesRight:
@@ -416,6 +425,29 @@ SetPointerLeft:
     ld d,0
     sbc hl,de
     jp ContinueCalculate
+
+;==============================================================
+;----- 4) COPY SCROLL BLOCK ----------------------------
+;==============================================================
+CopyScrollBlock:
+    ld a,(ActionStatus)
+    bit 3,a
+    jp z, DontCopyBlocks
+
+    ; Si ha llegado aquí, quiere decir que no había bloqueo de copia de tiles, y que toca copiar tiles.
+    ;TODO Se están copiando siempre los bloques cuando empieza el programa (scroll 0)
+    call CopyBlocks
+DontCopyBlocks:
+    ret
+
+;==============================================================
+;----- 5) MOVE SCROLL REGISTER ----------------------------
+;==============================================================
+MoveScrollRegister:
+    ld a,(Scroll)
+    ld b,VDP_HORIZONTAL_SCROLL_REGISTER
+    call SetRegister
+    ret
 
 ;==============================================================
 ; Data

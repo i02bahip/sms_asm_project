@@ -1,4 +1,18 @@
 ==========
+2023-07-31
+==========
+- Added Cartridge variable to investigate the current state of the cartridge hardware (thanks to ISSOtm and ax6)
+- Fixed a deadlock issue that could be caused by Reset while profiling (thanks to ISSOtm)
+- Fixed the symbol listed for the bank operator in the expressions manual (thanks to superdisk)
+- Fixed a regression in sound quality of Game Boy emulation (thanks to superdisk)
+- Fixed an issue with Game Boy window emulation (thanks to Kabcorp and sukus)
+- Fixed an issue with Step Out when C debugging
+- Fixed that the debugger could show a port name for an SRAM address
+- Fixed that No Disk for MSX's Disk B could not be selected
+- Improved Copy address in the Memory Editor's status bar (thanks to Antígeno)
+- Improved mapper detection for SEGA Mastersystem (thanks to tbsp)
+
+==========
 2023-06-30
 ==========
 - Fixed an issue where the Reference Hierarchy could display null as a label

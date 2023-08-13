@@ -111,12 +111,6 @@
 
 .ends
 
-
-; =============================================================================
-; L I B R A R I E S
-; =============================================================================
-.include "inc/support/stdlib.inc" ; General/supporting routines.
-
 .bank 0 slot 0
 .org $0000
 ;==============================================================
@@ -188,6 +182,7 @@ main:
     or a,%11111111
     ld (ScrollStatus),a
     ld (ActionStatus),a
+    call UnsetCopyBlocks
 
     ;==============================================================
     ; Load tiles (tileSet)
@@ -218,17 +213,21 @@ main:
 
 Loop:
     call WaitForFrameInterrupt
-    call SetScrollStatus ; Updateamos el registro que indica la direccion de movimiento
-    call MoveScroll  ; Update the scroll.
-    ld a,(Scroll)
-    ld b,VDP_HORIZONTAL_SCROLL_REGISTER
-    call SetRegister
-    call CopyScrollBlock
+    call UpdateScroll  ;Updateamos la variable scroll.
+    call UpdateScrollStatus ;Updateamos los flags que indican direccion de scroll y si ha alcanzado algún límite
+    call UpdateScrollIndexes ;Updateamos los indices del scroll. TODO Meter el updateo del BG Scroll Pointer???
+    call CopyScrollBlock ;Una vez tengamos La info de Scroll, sus flags y sus indices, copiamos o no nuevos bloques
+    call MoveScrollRegister ;Una vez todo esté listo, se mueve de forma real el scroll.
     jp Loop  
     ret
 
+MoveScrollRegister:
+    ld a,(Scroll)
+    ld b,VDP_HORIZONTAL_SCROLL_REGISTER
+    call SetRegister
+    ret
 
-SetScrollStatus:
+UpdateScrollStatus:
     call ScrollNoMovement
     ld a,(Controller)
     bit PLAYER1_JOYSTICK_LEFT,a
@@ -237,60 +236,6 @@ SetScrollStatus:
     jp z,ScrollDirectionRight
 ContinueScrollStatus:
     ret
-
-ScrollNoMovement:
-    ld a,(ScrollStatus)
-
-    or a,%00000101
-    ld (ScrollStatus),a
-    ret
-
-ScrollDirectionLeft:
-;TODO No se si esto funciona para algo o no
-    ;bit PLAYER1_JOYSTICK_RIGHT,a
-    ;jp z,ContinueScrollStatus
-    ld a,(ScrollStatus)
-    and a,%11111110
-    ld (ScrollStatus),a
-    ld a,(ActionStatus)
-    bit 2,a
-    call z,CopyBlocksRightToLeft
-    jp ContinueScrollStatus
-
-ScrollDirectionRight:
-;TODO No se si esto funciona para algo o no
-    ;bit PLAYER1_JOYSTICK_LEFT,a
-    ;jp z,ContinueScrollStatus
-    ld a,(ScrollStatus)
-    and a,%11111011
-    ld (ScrollStatus),a
-    ld a,(ActionStatus)
-    bit 0,a
-    call z,AllowCopyBlocks
-    ;call z,CopyBlocksLeftToRight
-    jp ContinueScrollStatus
-
-CopyBlocksRightToLeft:
-    ld a,(Scroll)
-    and %111 ; Se comprueba que el scroll sea multiplo de 8. Si no es así, no copia tiles
-    jp nz,NotCopyBlocksRightToLeft
-    call AllowCopyBlocks
-    call CalculatePointerBgScroll2
-    call CopyBlocks
-    call LastDirectionLeft
-NotCopyBlocksRightToLeft:
-    ret
-
-CopyBlocksLeftToRight:
-    ld a,(Scroll)
-    and %111 ; Se comprueba que el scroll sea multiplo de 8. Si no es así, no copia tiles
-    jp nz,NotCopyBlocksLeftToRight
-    call AllowCopyBlocks
-    call CalculatePointerBgScroll2
-    call CopyBlocks
-    call LastDirectionRight
-NotCopyBlocksLeftToRight:
-    jp ContinueScrollBlock
 
 TurnOnscreen:
     di
@@ -351,12 +296,12 @@ InitTileMapIndexInVisibleColumns:
 
 ;----- FUNCIONES SCROLL ----------------------------
 
-MoveScroll:
+UpdateScroll:
     ld a,(ScrollStatus)
     bit 0,a
-    jp z,AddScroll
+    jp z,updateScrollLeft
     bit 2,a
-    jp z,SubScroll
+    jp z,updateScrollRight
 ContinueScroll:
     ld a,(Scroll)
     jp z,SetScrollZero
@@ -369,7 +314,7 @@ resetIndexScrollScreen:
     ld (IndexScrollScreen),a
     ret
 
-SubScroll:
+updateScrollRight:
     bit 5,a
     jp z,ContinueScroll
     ld a,(Scroll)
@@ -377,212 +322,53 @@ SubScroll:
     ld (Scroll),a
     jp ContinueScroll
 
-AddScroll:
+updateScrollLeft:
     bit 4,a
     jp z,ContinueScroll
     ld a,(Scroll)
     add SCROLL_HORIZONTAL_SPEED
     ld (Scroll),a
     jp ContinueScroll
-    ;----------------------------------------------------------------
 
 ;----------- FUNCIONES COPIAR TILES ----------------------------
 CopyScrollBlock:
-    ld a,(Scroll)
-    and %111 ; Se comprueba que el scroll sea multiplo de 8. Si no es así, no copia tiles, pero permite que se pueda volver a copiar en un futuro cuando sea multiplo
-    jp nz,DontCopyBlocksButAllow
-
-    ; Si si ha sido multiplo, hay que comprobar que no haya bloqueo de copia de tiles (quiere decir que ya se han copiado. Para casos de estar parado cuando se es multiplo de 8)
     ld a,(ActionStatus)
     bit 3,a
     jp z, DontCopyBlocks
 
     ; Si ha llegado aquí, quiere decir que no había bloqueo de copia de tiles, y que toca copiar tiles.
+    ;TODO Se están copiando siempre los bloques cuando empieza el programa (scroll 0)
+    call CopyBlocks
 
-    ld a,(ScrollStatus)
-    bit 0,a
-    jp z, CopyAndUpdate
-
-    ld a,(ActionStatus)
-    bit 0,a
-    jp z, CopyBlocksLeftToRight
-
-    call UpdateAndCopy
-
-ContinueScrollBlock:
-    jp DontCopyBlocks
-    
-DontCopyBlocksButAllow:
-    call AllowCopyBlocks
 DontCopyBlocks:
     ret
 
-CheckScreenEndRight:
-    ;Si llega al final de la longitud del mapa en memoria, empieza de nuevo
-    or a ;clear carry flag
-    ld hl,(IndexBgScroll)
-    ld de,BG_TILES_WIDTH+2
-    sbc hl,de
-    jp nc,SetReachRight   ;IndexBgScroll >= BG_WIDTH
-    call UnsetReachRight
-    ret
-
-CheckScreenEndLeft:
-    or a ;clear carry flag
-    ld hl,(IndexBgScroll)
-    ld de,0
-    sbc hl,de
-    jp z,SetReachLeft
-
-    call UnsetReachLeft
-    ret    
-
-SetScrollZero:
-    ld a,(ScrollStatus)
-    and a,%11110111
-    ld (ScrollStatus),a
-    jp NoSetScrollZero
-
-NoScrollZero:
-    ld a,(ScrollStatus)
-    or a,%00001000
-    ld (ScrollStatus),a
-    ret
-
-;TODO Ahora, para que cuando das derecha un par de veces (derecha y pico), vuelves atras al principio.. no copia bien los tiles dirección derecha
-
-SetReachLeft:
-    ld a,(ScrollStatus)
-    and a,%11101111
-    ld (ScrollStatus),a
-    call LastDirectionRight
-    jp ContinueScrollBlock
-
-UnsetReachLeft:
-    ld a,(ScrollStatus)
-    or a,%00010000
-    ld (ScrollStatus),a
-    ret
-
-SetReachRight:
-    ld a,(ScrollStatus)
-    and a,%11011111
-    ld (ScrollStatus),a
-    call LastDirectionLeft
-    jp ContinueScrollBlock
-
-UnsetReachRight:
-    ld a,(ScrollStatus)
-    or a,%00100000
-    ld (ScrollStatus),a
-    ret
-
-AllowCopyBlocks:
-    ld a,(ActionStatus)
-    or a,%00001000
-    ld (ActionStatus),a
-    ret
-
-NotAllowCopyBlocks:
-    ld a,(ActionStatus)
-    and a,%11110111
-    ld (ActionStatus),a
-    ret
-
-LastDirectionLeft:
-    ld a,(ActionStatus)
-    and a,%11111110
-    or a,%00000100
-    ld (ActionStatus),a
-    ret
-
-LastDirectionRight:
-    ld a,(ActionStatus)
-    and a,%11111011
-    or a,%00000001
-    ld (ActionStatus),a
-    ret
-
-CopyBlocks:
-    call NotAllowCopyBlocks
-    call InitTileMapIndex
-    ;Aquí vamos a indicar en el mapa de tiles que se muestran por pantalla, la nueva columna a rellenar 
-    ld hl,(TileMapAddressIndex) ; Indice de donde empieza la dirección de la tabla de tiles que se muestra en pantalla
-    ld a,(IndexScrollScreen) ; Indice de por donde va el scroll real (columna invisible)
-    ld e,a
-    ld d,0
-    add hl,de   ; Añade offset del scroll real para que copie en la posición correcta en vram los bloques del mapa completo en el siguiente paso
-    ld (TileMapAddressIndex),hl
-    ld a,SCREEN_HEIGHT_TILES    ; Contador de lineas vertical
-CopyBlocksLoop:
-    push af ; Salvar el contador
-    ld hl,(TileMapAddressIndex)
-    PrepareVram
-
-    ; Copiamos el tile que corresponde del mapa completo
-    ld hl,(TileMapIndex)
-    ld de,(PointerBgScroll) ; Añade el offset del puntero hacia el mapa completo
-    add hl,de
-    ld bc,2  ; Counter for number of bytes to write
-    call LoadVRAM
-
-    ; Pasamos a apuntar a la siguiente fila del mapa completo
-    ld hl,(TileMapIndex)
-    ld bc,BG_WIDTH
-    add hl,bc
-    ld (TileMapIndex),hl
-
-    ; Apuntamos a la siguiente fila del mapa en la vram
-    ld hl,(TileMapAddressIndex)
-    ld e,ROW_OF_SCREEN_FULL    ; DE = A
-    ld d,0
-    add hl,de
-    ld (TileMapAddressIndex),hl
-
-    pop af ; Obtener el contador
-    sub 1
-    jp nz,CopyBlocksLoop
-    ret
-
-;TODO Arreglar esto: Algo sigue pasando en el limite de cambiar de dirección
-
-CopyAndUpdate:
-    ld a,(ActionStatus)
-    bit 2,a
-    call nz, UpdateScrollIndexes
-    call CheckScreenEndLeft
-    call CalculatePointerBgScroll2
-    call CopyBlocks
-    ;TODO 2: He hecho esto, pero cuando vuelvo de estar en reach left limit.. cuando le doy a la derecha, NO se quita el reach left limit, por lo cual, no puedo volver a la izquierda
-    ; se cree que estoy en el limite izquierdo
-    ld a,(ScrollStatus)
-    bit 4,a
-    call nz,LastDirectionLeft
-    jp ContinueScrollBlock
-
-UpdateAndCopy:
-    call UpdateScrollIndexes
-    call CheckScreenEndRight
-    call CalculatePointerBgScroll2
-    call CopyBlocks
-    ret
-
 UpdateScrollIndexes:
+    ld a,(Scroll)
+    and %111 ; Se comprueba que el scroll sea multiplo de 8. Si si lo es, Pone a 1 el flag de copiar bloques
+    call z,SetCopyBlocks
+
+    ;TODO Mejorable
+    ld a,(ActionStatus)
+    bit 3,a
+    jp z,NoUpdateIndex
+
+    call CalculatePointerBgScroll
+
     ld a,(ScrollStatus)
     bit 0,a
-    jp z, SubScrolls
+    jp z, moveIndexesLeft
     bit 2,a
-    jp z, AddScrolls
+    jp z, moveIndexesRight
 ContinueUpdating:
     ld a,(ScrollStatus)
     bit 3,a
     call z, resetIndexScrollScreen
+NoUpdateIndex
     ret
 
-AddScrolls:
-    ;estas dos líneas se pueden mejorar
+moveIndexesRight:
     call LastDirectionRight
-    call UnsetReachLeft
     ld a,(IndexScrollScreen)
     add 2
     ld (IndexScrollScreen),a
@@ -592,9 +378,8 @@ AddScrolls:
     ld (IndexBgScroll),ix
     jp ContinueUpdating
 
-SubScrolls:
+moveIndexesLeft:
     call LastDirectionLeft
-    call UnsetReachRight
     ld a,(IndexScrollScreen)
     sub 2
     ld (IndexScrollScreen),a
@@ -605,14 +390,6 @@ SubScrolls:
     jp ContinueUpdating
 
 CalculatePointerBgScroll:
-    ld hl,(IndexBgScroll)
-    ld e,ROW_OF_SCREEN
-    ld d,0
-    add hl,de
-    ld (PointerBgScroll), hl
-    ret
-;-----------------------------------
-CalculatePointerBgScroll2:
     ld hl,(IndexBgScroll)
     ld a,(ScrollStatus)
     bit 0,a
@@ -640,28 +417,6 @@ SetPointerLeft:
     sbc hl,de
     jp ContinueCalculate
 
-;-----------------------------------
-
-
-GetCtrl:
-    push af
-    in a,$dc
-    ld [Controller],a
-    pop af
-    ret
-ButtonHandle:
-    push af
-    ld a,[Controller]
-    bit PLAYER1_JOYSTICK_LEFT,a
-    call z, _MoveLe
-    bit PLAYER1_JOYSTICK_RIGHT,a
-    call z, _MoveRi
-    pop af
-    ret
-_MoveLe:
-    ret
-_MoveRi:
-    ret
 ;==============================================================
 ; Data
 ;==============================================================
@@ -694,3 +449,11 @@ SpritePaletteData:
 TileSet:
     .include "inc/art/tileSets/bgTileSet.inc"
 TileSetEnd:
+
+; =============================================================================
+; L I B R A R I E S
+; =============================================================================
+.include "inc/support/stdlib.inc" ; General/supporting routines.
+.include "inc/support/flagHelper.asm"
+.include "inc/support/copyBlocksHelper.asm"
+.include "inc/support/controlHelper.asm"

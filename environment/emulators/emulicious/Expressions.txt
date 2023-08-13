@@ -13,7 +13,8 @@ variables (see below)
 the @ operator to "read" a value from a calculated address
 the @@ operator to specifcy the location to read from (Usage: location@@address)
 the : operator to map a specified address to a specified bank (Usage: bank:address)
-the ? operator to retrive the bank at the specified address (Usage: ?address)
+the & operator to retrive the bank at the specified address (Usage: &address)
+the && operator to retrive the bank of the specified symbol (Usage: &&symbol)
 
 Besides that the following variables are supported:
 All register names (As single registers and as register pairs)

@@ -6,6 +6,7 @@ IF "%1"=="2" goto No2
 IF "%1"=="3" goto No3
 IF "%1"=="4" goto No4
 IF "%1"=="5" goto No5
+IF "%1"=="6" goto No6
 goto :showParams
 
 :No0
@@ -25,6 +26,9 @@ goto :showParams
     goto EndParams
 :No5
     set folder="5-bigBackground-move2"
+    goto EndParams
+:No6
+    set folder="6-bigBackground-move3"
     goto EndParams
 :EndParams
 
@@ -52,6 +56,7 @@ echo 2: background
 echo 3: big background
 echo 4: big background move
 echo 5: big background move2
+echo 6: big background move3
 echo ----------------------------
 echo Example for build example 0: 
 echo build 0

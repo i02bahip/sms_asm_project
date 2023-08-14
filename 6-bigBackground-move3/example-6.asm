@@ -201,24 +201,28 @@ main:
     call SetRegister
 
 ;==============================================================
-; Init InitTileMapIndex
+; Set init values
 ;==============================================================
     call setScreen
     call InitTileMapIndex
+    call SetReachLeft
+    call UnsetCopyBlocks
 
 ;==============================================================
 ; Turn on the screen
 ;==============================================================
     call TurnOnscreen
-    call SetReachLeft
 ;==============================================================
 ; MAIN LOOP
 ;==============================================================
 Loop:
     call WaitForFrameInterrupt ; Esperamos a que se haya pintado la pantalla.
-    call UpdateScroll  ;Updateamos la variable scroll.
-    call UpdateScrollStatus ;Updateamos los flags que indican direccion de scroll
-    call UpdateScrollIndexes ;Updateamos los indices del scroll.
+    ;TODO esta pasando lo siguiente: Si vas del tirón a la derecha, no pasa nada. Pero si vas dandole de forma intermitente a la derecha, parece como si el scroll
+    ; y el scroll status no estuvieran sincronizados. Lo mismo hay que actualizar el status al mismo tiempo que el scroll.
+    call UpdateScroll  ;Updateamos la variable scroll. Modifica: Scroll db
+    call UpdateScrollStatus ;Updateamos los flags que indican direccion de scroll. Modifica: ScrollStatus db
+    ;TODO revisar si en la siguiente funcion se puede quitar la modificación de scrollstatus y ponerla en el anterior método
+    call UpdateScrollIndexes ;Updateamos los indices del scroll. Modifica: PointerBgScroll, IndexScrollScreen, IndexBgScroll, ActionStatus, ScrollStatus
     call CopyScrollBlock ;Una vez tengamos La info de Scroll, sus flags y sus indices, copiamos o no nuevos bloques
     call MoveScrollRegister ;Una vez todo esté listo, se mueve de forma real el scroll.
     jp Loop  
@@ -349,6 +353,8 @@ UpdateScrollIndexes:
     bit 3,a
     jp z,NoUpdateIndex
 
+    call CalculatePointerBgScroll
+
     ld a,(ScrollStatus)
     bit 0,a
     jp z, moveIndexesLeft
@@ -358,7 +364,6 @@ ContinueUpdating:
     ld a,(ScrollStatus)
     bit 3,a
     call z, resetIndexScrollScreen
-    call CalculatePointerBgScroll
 NoUpdateIndex
     ret
 
@@ -448,7 +453,6 @@ CopyScrollBlock:
     jp z, DontCopyBlocks
 
     ; Si ha llegado aquí, quiere decir que no había bloqueo de copia de tiles, y que toca copiar tiles.
-    ;TODO Se están copiando siempre los bloques cuando empieza el programa (scroll 0)
     call CopyBlocks
 DontCopyBlocks:
     ret

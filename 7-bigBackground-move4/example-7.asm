@@ -103,7 +103,7 @@
     ; Bit 7: -
     ; Bit 6: -
     ; Bit 5: -
-    ; Bit 4: Cambio de dirección
+    ; Bit 4: Bloques copiados
     ; Bit 3: Copiar bloques
     ; Bit 2: - Ultima direccion derecha
     ; Bit 1: -
@@ -206,7 +206,7 @@ main:
     call setScreen
     call InitTileMapIndex
     call SetReachLeft
-    call UnsetCopyBlocks
+    call UnsetBlocksAlreadyCopied
 
 ;==============================================================
 ; Turn on the screen
@@ -218,12 +218,8 @@ main:
 Loop:
     call WaitForFrameInterrupt ; Esperamos a que se haya pintado la pantalla.
     call UpdateScrollStatus ;Updateamos los flags que indican direccion de scroll. Modifica: ScrollStatus db
-    ;TODO esta pasando lo siguiente: Si vas del tirón a la derecha, no pasa nada. Pero si vas dandole de forma intermitente a la derecha, parece como si el scroll
-    ; y el scroll status no estuvieran sincronizados. Lo mismo hay que actualizar el status al mismo tiempo que el scroll.
     call UpdateScroll  ;Updateamos la variable scroll. Modifica: Scroll db
-    ;TODO revisar si en la siguiente funcion se puede quitar la modificación de scrollstatus y ponerla en el anterior método
     call UpdateScrollIndexes ;Updateamos los indices del scroll. Modifica: PointerBgScroll, IndexScrollScreen, IndexBgScroll, ActionStatus, ScrollStatus
-    call CopyScrollBlock ;Una vez tengamos La info de Scroll, sus flags y sus indices, copiamos o no nuevos bloques
     call MoveScrollRegister ;Una vez todo esté listo, se mueve de forma real el scroll.
     jp Loop  
     ret
@@ -289,7 +285,24 @@ TurnOnscreen:
     ret    
 
 ;==============================================================
-;----- 1) UPDATE SCROLL ----------------------------
+;----- 1) UPDATE SCROLL STATUS ----------------------------
+;==============================================================
+UpdateScrollStatus:
+    call ScrollNoMovement
+    ld a,(Controller)
+    bit PLAYER1_JOYSTICK_LEFT,a
+    jp z,ScrollDirectionLeft
+    bit PLAYER1_JOYSTICK_RIGHT,a
+    jp z,ScrollDirectionRight
+ContinueScrollStatus:
+    ld a,(Scroll)
+    add 1
+    sub 1
+    call z,SetScrollZero
+    ret
+
+;==============================================================
+;----- 2) UPDATE SCROLL ----------------------------
 ;==============================================================
 UpdateScroll:
     ld a,(ScrollStatus)
@@ -298,17 +311,12 @@ UpdateScroll:
     bit 2,a
     jp z,updateScrollRight
 ContinueScroll:
-    ld a,(Scroll)
-    add 1
-    sub 1
-    jp z,SetScrollZero
-    call NoScrollZero
-NoSetScrollZero:
     ret
 
 resetIndexScrollScreen:
     ld a,0
     ld (IndexScrollScreen),a
+    call NoScrollZero
     ret
 
 updateScrollRight:
@@ -328,30 +336,25 @@ updateScrollLeft:
     jp ContinueScroll
 
 ;==============================================================
-;----- 2) UPDATE SCROLL STATUS ----------------------------
-;==============================================================
-UpdateScrollStatus:
-    call ScrollNoMovement
-    ld a,(Controller)
-    bit PLAYER1_JOYSTICK_LEFT,a
-    jp z,ScrollDirectionLeft
-    bit PLAYER1_JOYSTICK_RIGHT,a
-    jp z,ScrollDirectionRight
-ContinueScrollStatus:
-    ret
-
-;==============================================================
 ;----- 3) UPDATE SCROLL INDEXES ----------------------------
 ;==============================================================
 UpdateScrollIndexes:
     ld a,(Scroll)
     and %111 ; Se comprueba que el scroll sea multiplo de 8. Si si lo es, Checkeamos si poner a 1 el flag de copiar bloques
-    call z,CalculateIfCopyBlocks
+    jp z,CalculateIfCopyBlocks ; si entra en este método, no actualiza indices ni copia bloques. Lo deja para la siguiente iteracion que
+                                ;copiará bloques dependiendo de la dirección
 
-    ;TODO Mejorable
+ContinueUpdatingIndexes:
     ld a,(ActionStatus)
     bit 3,a
-    jp z,NoUpdateIndex
+    jp z,NoUpdateIndex ; Si el flag de copiar bloques está activo, quiere decir que 
+    ;seguimos para copiar bloques y actualizar indices, si no, nos saltamos todo eso.
+
+    ld a,(ScrollStatus)
+    bit 3,a
+    call z, resetIndexScrollScreen
+    call CalculatePointerBgScroll
+    call CopyBlocks
 
     ld a,(ScrollStatus)
     bit 0,a
@@ -359,18 +362,15 @@ UpdateScrollIndexes:
     bit 2,a
     jp z, moveIndexesRight
 ContinueUpdating:
-    call CalculatePointerBgScroll
-    ld a,(ScrollStatus)
-    bit 3,a
-    call z, resetIndexScrollScreen
 NoUpdateIndex
     ret
 
 CalculateIfCopyBlocks:
     ld a,(ActionStatus) ;Si no se han copiado ya los bloques
     bit 4,a
-    call nz,SetCopyBlocks
-    ret
+    jp z,ContinueUpdatingIndexes
+    call SetCopyBlocks
+    jp NoUpdateIndex
 
 moveIndexesRight:
     call LastDirectionRight

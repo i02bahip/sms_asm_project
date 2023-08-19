@@ -370,6 +370,8 @@ CalculateIfCopyBlocks:
     bit 4,a
     jp z,ContinueUpdatingIndexes
     call SetCopyBlocks
+    ;TODO Intuyo que habrá que preguntar por los límites aquí, pero no lo se.
+    ; lo que está pasando es que cuando copia los últimos bloques del BG, se pasa de frenada, ya que se mueve el scroll tb, y no debería
     jp NoUpdateIndex
 
 moveIndexesRight:

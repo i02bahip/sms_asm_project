@@ -8,6 +8,7 @@ IF "%1"=="4" goto No4
 IF "%1"=="5" goto No5
 IF "%1"=="6" goto No6
 IF "%1"=="7" goto No7
+IF "%1"=="8" goto No8
 goto :showParams
 
 :No0
@@ -33,6 +34,9 @@ goto :showParams
     goto EndParams
 :No7
     set folder="7-bigBackground-move4"
+    goto EndParams
+:No8
+    set folder="8-bigBackground-move5"
     goto EndParams
 :EndParams
 

@@ -1,4 +1,19 @@
 ==========
+2023-08-31
+==========
+- Added .sc as supported filename extension for games supported by the Master System (thanks to Popfan)
+- Added an option to the Debugger's File menu to unload the currently loaded sources
+- Added some more variables to the Variables tab (e.g. if SRAM is enabled)
+- Made the data execution exception breakpoint trigger in less cases (thanks to Maxim)
+- Fixed a regression that could cause variables to not be changable from the Variables tab (thanks to rdp)
+- Fixed dot numbers reported for events when Game Boy Color's double speed mode is enabled (thanks to bbbbbr)
+- Fixed a deadlock that could be caused by the Game Boy's STOP instruction (thanks to Famicuber)
+- Fixed that sometimes a general profiler didn't update unless it is selected (thanks to ISSOtm)
+- Fixed that CTRL+END caused graphical glitches in the Memory Editor (thanks to Maxim)
+- Fixed a regression that could cause general profilers to not get persisted properly
+- Fixed crackling sound that could occur on initial suspend after skipping through a bootrom
+
+==========
 2023-07-31
 ==========
 - Added Cartridge variable to investigate the current state of the cartridge hardware (thanks to ISSOtm and ax6)

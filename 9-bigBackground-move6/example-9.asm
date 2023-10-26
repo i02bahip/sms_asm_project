@@ -344,6 +344,9 @@ ContinueUpdatingIndexes:
     call CalculatePointerBgScroll
     call CopyBlocks
 
+
+    ; TODO El moveindexesleft updatea el IndexScrollScreen después de copiar los bloques. Deberia actualizarse antes
+    ; lo que pasa es que parece que IndexBgScroll si que debería actualizarse después
     ld a,(ScrollStatus)
     bit 0,a
     jp z, moveIndexesLeft

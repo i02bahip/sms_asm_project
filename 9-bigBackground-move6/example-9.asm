@@ -36,15 +36,10 @@
 .define PALETTE_2_ADDRESS $c010 ; Bank 2 address.
 .define ADDRESS_OF_FIRST_TILE $0000
 .define TILEMAP_ADDRESS $3800
-.define TILEMAP_ADDRESS_INIT $3802
 .define SCREEN_HEIGHT_TILES 24
-.define TEST 6
 .define BG_TILES_WIDTH 128*2
 .define BG_WIDTH 160*2
-.define BG_FULL 160*24
-.define ROW_OF_SCREEN 31*2
-.define ROW_OF_SCREEN_FULL 32*2
-.define VISIBLE_PART_OF_SCREEN 32*24*2
+.define SCREEN_WIDTH 32*2
 .define VDP_HORIZONTAL_SCROLL_REGISTER 8
 .define SCROLL_HORIZONTAL_SPEED 1
 .define STACK_INIT_ADDRESS $dff0
@@ -87,8 +82,8 @@
     IndexScrollScreen db       ; Indice de Scroll por tiles en pantalla: va de forma ascendente de 00 a 40 de dos en dos (2 bytes  = tile). Indica el tile a pintar
     IndexBgScroll dw           ; Indice de Scroll por tiles en el background entero. Va de forma ascendente de 00 a .
     PointerBgScroll dw         ; Apuntará al final del bgscroll o a bgScroll - tamaño de pantalla dependiendo si vamos a derecha o izquierda
-    TileMapIndex dw         ;Dirección del tilemap en memoria
-    TileMapAddressIndex dw ;Dirección de la tabla que define lo que se ve en la pantalla
+    MapMemoryIndex dw         ;Dirección del tilemap en memoria
+    MapVRAMIndex dw ;Dirección de la tabla que define lo que se ve en la pantalla
     Controller db
     ScrollStatus db     ;TODO aqui guardaremos flags:
     ; Bit 7: Limite inferior
@@ -204,7 +199,7 @@ main:
 ; Set init values
 ;==============================================================
     call setScreen
-    call InitTileMapIndex
+    call InitVRAMAndMemoryIndex
     call SetReachLeft
     call UnsetBlocksAlreadyCopied
 
@@ -228,49 +223,42 @@ Loop:
 ;----- 0) INIT FUNCTIONS ----------------------------
 ;==============================================================
 setScreen:
-    call InitTileMapIndexInVisibleColumns
+    call InitVRAMAndMemoryIndex
     ld a,SCREEN_HEIGHT_TILES    ; register a is now Rowcount
 setScreenLoop:
     push af ; save the rowcount
 
-    ld hl,(TileMapAddressIndex)
+    ld hl,(MapVRAMIndex)
     PrepareVram
     ; 2. Output tilemap data
-    ld hl,(TileMapIndex)
-    ld bc,ROW_OF_SCREEN  ; Counter for number of bytes to write
+    ld hl,(MapMemoryIndex)
+    ld bc,SCREEN_WIDTH  ; Counter for number of bytes to write
     call LoadVRAM
 
     ;pointing new row in full BG
-    ld hl,(TileMapIndex)
+    ld hl,(MapMemoryIndex)
     ld bc,BG_WIDTH    ; DE = A
     ;ld d,0
     add hl,bc
-    ld (TileMapIndex),hl
+    ld (MapMemoryIndex),hl
 
     ;pointing new row in screen
-    ld hl,(TileMapAddressIndex)
-    ld e,ROW_OF_SCREEN_FULL    ; DE = A
+    ld hl,(MapVRAMIndex)
+    ld e,SCREEN_WIDTH    ; DE = A
     ld d,0
     add hl,de
-    ld (TileMapAddressIndex),hl
+    ld (MapVRAMIndex),hl
 
     pop af ; Get the rowcount
     sub 1
     jp nz,setScreenLoop
     ret
 
-InitTileMapIndexInVisibleColumns:
+InitVRAMAndMemoryIndex:
     ld hl,TileMap
-    ld (TileMapIndex),hl
-    ld hl,TILEMAP_ADDRESS_INIT
-    ld (TileMapAddressIndex),hl
-    ret
-
-InitTileMapIndex:
-    ld hl,TileMap
-    ld (TileMapIndex),hl
+    ld (MapMemoryIndex),hl ;Apunta al inicio del mapa completo en memoria
     ld hl,TILEMAP_ADDRESS
-    ld (TileMapAddressIndex),hl
+    ld (MapVRAMIndex),hl ;Apunta al inicio del mapa en VRAM
     ret
 
 TurnOnscreen:
@@ -403,7 +391,7 @@ CheckScreenEndRight:
     call UnsetReachRight
     or a ;clear carry flag
     ld hl,(IndexBgScroll)
-    ld de,BG_TILES_WIDTH+2
+    ld de,BG_TILES_WIDTH
     sbc hl,de
     call nc,SetReachRight   ;IndexBgScroll >= BG_WIDTH
     ret
@@ -431,7 +419,7 @@ SetPointerRight:
     ld a,(ScrollStatus)
     bit 5,a
     jp z, SetPointerLeft
-    ld e,ROW_OF_SCREEN
+    ld e,SCREEN_WIDTH
     ld d,0
     add hl,de
     jp ContinueCalculate

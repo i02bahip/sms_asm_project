@@ -1,4 +1,13 @@
 ==========
+2023-09-30
+==========
+- Fixed an issue that could sometimes cause the cursor not to follow the current instruction (thanks to ISSOtm)
+- Fixed an issue with step back while OAM DMA is running (thanks to leina)
+- Fixed a memory leak when a rom keeps the LCD disabled all the time (thanks to sono)
+- Fixed that modifying PSG frequencies and volumes for SMS were swapped (thanks to superdisk)
+- Fixed a bug that could cause the disassembler to crash (thanks to Studio Loading)
+
+==========
 2023-08-31
 ==========
 - Added .sc as supported filename extension for games supported by the Master System (thanks to Popfan)

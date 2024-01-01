@@ -4,7 +4,7 @@ CopyBlocks:
     call InitVRAMAndMemoryIndex
     ;Aquí vamos a indicar en el mapa de tiles que se muestran por pantalla, la nueva columna a rellenar 
     ld hl,(MapVRAMIndex) ; Indice de donde empieza la dirección de la tabla de tiles que se muestra en pantalla
-    ld a,(IndexScrollScreen) ; Indice de por donde va el scroll real (columna invisible)
+    ld a,(RealScrollScreen) ; Indice de por donde va el scroll real (columna invisible)
     ld e,a
     ld d,0
     add hl,de   ; Añade offset del scroll real para que copie en la posición correcta en vram los bloques del mapa completo en el siguiente paso

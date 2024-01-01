@@ -79,7 +79,7 @@
 .ramsection "variables" slot 1
     VDPStatus db        ; Gets updated by the frame int. handler.
     Scroll db           ; Scroll horizontal: va de forma descendente de FF a 00 de 1 en 1
-    IndexScrollScreen db       ; Indice de Scroll por tiles en pantalla: va de forma ascendente de 00 a 40 de dos en dos (2 bytes  = tile). Indica el tile a pintar
+    RealScrollScreen db ; Indice de Scroll por tiles en pantalla: va de forma ascendente de 00 a 40 de dos en dos (2 bytes  = tile). Indica el tile a pintar
     IndexBgScroll dw           ; Indice de Scroll por tiles en el background entero. Va de forma ascendente de 00 a .
     PointerBgScroll dw         ; Apuntará al final del bgscroll o a bgScroll - tamaño de pantalla dependiendo si vamos a derecha o izquierda
     MapMemoryIndex dw         ;Dirección del tilemap en memoria
@@ -214,7 +214,7 @@ Loop:
     call WaitForFrameInterrupt ; Esperamos a que se haya pintado la pantalla.
     call UpdateScrollStatus ;Updateamos los flags que indican direccion de scroll. Modifica: ScrollStatus db
     call UpdateScroll  ;Updateamos la variable scroll. Modifica: Scroll db
-    call UpdateScrollIndexes ;Updateamos los indices del scroll. Modifica: PointerBgScroll, IndexScrollScreen, IndexBgScroll, ActionStatus, ScrollStatus
+    call UpdateScrollIndexes ;Updateamos los indices del scroll. Modifica: PointerBgScroll, RealScrollScreen, IndexBgScroll, ActionStatus, ScrollStatus
     call MoveScrollRegister ;Una vez todo esté listo, se mueve de forma real el scroll.
     jp Loop  
     ret
@@ -303,7 +303,7 @@ ContinueScroll:
 
 resetIndexScrollScreen:
     ld a,0
-    ld (IndexScrollScreen),a
+    ld (RealScrollScreen),a
     call NoScrollZero
     ret
 
@@ -338,38 +338,52 @@ ContinueUpdatingIndexes:
     jp z,NoUpdateIndex ; Si el flag de copiar bloques está activo, quiere decir que 
     ;seguimos para copiar bloques y actualizar indices, si no, nos saltamos todo eso.
 
+    ;TODO Algo pasa con el PointerBgScroll. Reproducir:
+    ; - mover scroll al limite de copiar bloque pero que NO se copie
+    ; - Inmediatamente después, mover en la otra dirección. Se copia el bloque en su lugar, pero un bloque erroneo
+
     ld a,(ScrollStatus)
     bit 3,a
     call z, resetIndexScrollScreen
-    call CalculatePointerBgScroll
-    call CopyBlocks
 
-
-    ; TODO El moveindexesleft updatea el IndexScrollScreen después de copiar los bloques. Deberia actualizarse antes
-    ; lo que pasa es que parece que IndexBgScroll si que debería actualizarse después
     ld a,(ScrollStatus)
     bit 0,a
     jp z, moveIndexesLeft
     bit 2,a
     jp z, moveIndexesRight
+
 ContinueUpdating:
+    call CalculatePointerBgScroll
+    call CopyBlocks
+
 NoUpdateIndex
     ret
 
 CalculateIfCopyBlocks:
+    ld a,(Scroll)
+    cpl
+    ;desplazar 3 a la derecha
+    SRL a
+    SRL a
+    SRL a
+    ; añadir 1
+    add 1
+    jp z, dontAdd
+    SLA a
+    ;add 2
+dontAdd:
+    ld (RealScrollScreen), a
+
+
     ld a,(ActionStatus) ;Si no se han copiado ya los bloques
     bit 4,a
     jp z,ContinueUpdatingIndexes
     call SetCopyBlocks
     ;TODO Intuyo que habrá que preguntar por los límites aquí, pero no lo se.
-    ; lo que está pasando es que cuando copia los últimos bloques del BG, se pasa de frenada, ya que se mueve el scroll tb, y no debería
     jp NoUpdateIndex
 
 moveIndexesRight:
     call LastDirectionRight
-    ld a,(IndexScrollScreen)
-    add 2
-    ld (IndexScrollScreen),a
     ld ix,(IndexBgScroll)
     inc ix
     inc ix
@@ -379,9 +393,6 @@ moveIndexesRight:
 
 moveIndexesLeft:
     call LastDirectionLeft
-    ld a,(IndexScrollScreen)
-    sub 2
-    ld (IndexScrollScreen),a
     ld ix,(IndexBgScroll)
     dec ix
     dec ix

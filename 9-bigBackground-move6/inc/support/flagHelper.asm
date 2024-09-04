@@ -33,42 +33,6 @@ ScrollDirectionRight:
     call UnsetBlocksAlreadyCopied
     jp ContinueScrollStatus
 
-SetScrollZero:
-    ld a,(ScrollStatus)
-    and a,%11110111
-    ld (ScrollStatus),a
-    ret
-
-NoScrollZero:
-    ld a,(ScrollStatus)
-    or a,%00001000
-    ld (ScrollStatus),a
-    ret
-
-SetReachLeft:
-    ld a,(ScrollStatus)
-    and a,%11101111
-    ld (ScrollStatus),a
-    ret
-
-UnsetReachLeft:
-    ld a,(ScrollStatus)
-    or a,%00010000
-    ld (ScrollStatus),a
-    ret
-
-SetReachRight:
-    ld a,(ScrollStatus)
-    and a,%11011111
-    ld (ScrollStatus),a
-    ret
-
-UnsetReachRight:
-    ld a,(ScrollStatus)
-    or a,%00100000
-    ld (ScrollStatus),a
-    ret
-
 ;------------------------------------------------
 ;------------------------------------------------
 ;   ACTION STATUS
@@ -117,5 +81,17 @@ LastDirectionRight:
     ld a,(ActionStatus)
     and a,%11111011
     or a,%00000001
+    ld (ActionStatus),a
+    ret
+
+UnsetDirChanged:
+    ld a,(ActionStatus)
+    or a,%00000010
+    ld (ActionStatus),a
+    ret
+
+SetDirChanged:
+    ld a,(ActionStatus)
+    and a,%11111101
     ld (ActionStatus),a
     ret

@@ -79,6 +79,7 @@
 .ramsection "variables" slot 1
     VDPStatus db        ; Gets updated by the frame int. handler.
     Scroll db           ; Scroll horizontal: va de forma descendente de FF a 00 de 1 en 1
+    LastScroll db
     RealScrollScreen db ; Indice de Scroll por tiles en pantalla: va de forma ascendente de 00 a 40 de dos en dos (2 bytes  = tile). Indica el tile a pintar
     IndexBgScroll dw           ; Indice de Scroll por tiles en el background entero. Va de forma ascendente de 00 a .
     PointerBgScroll dw         ; Apuntará al final del bgscroll o a bgScroll - tamaño de pantalla dependiendo si vamos a derecha o izquierda
@@ -200,8 +201,7 @@ main:
 ;==============================================================
     call setScreen
     call InitVRAMAndMemoryIndex
-    call SetReachLeft
-    call UnsetBlocksAlreadyCopied
+    call SetBlocksAlreadyCopied
 
 ;==============================================================
 ; Turn on the screen
@@ -283,10 +283,6 @@ UpdateScrollStatus:
     bit PLAYER1_JOYSTICK_RIGHT,a
     jp z,ScrollDirectionRight
 ContinueScrollStatus:
-    ld a,(Scroll)
-    add 1
-    sub 1
-    call z,SetScrollZero
     ret
 
 ;==============================================================
@@ -301,123 +297,101 @@ UpdateScroll:
 ContinueScroll:
     ret
 
-resetIndexScrollScreen:
-    ld a,0
-    ld (RealScrollScreen),a
-    call NoScrollZero
-    ret
-
 updateScrollRight:
-    bit 5,a
-    jp z,ContinueScroll
+    ld a,(ActionStatus)
+    bit 0,a
+    call z,SetDirChanged
+    ld a,(ActionStatus)
+    bit 0,a
+    call nz,UnsetDirChanged
     ld a,(Scroll)
+    ld (LastScroll), a
     sub SCROLL_HORIZONTAL_SPEED
     ld (Scroll),a
     jp ContinueScroll
 
 updateScrollLeft:
-    bit 4,a
-    jp z,ContinueScroll
+    ld a,(ActionStatus)
+    bit 2,a
+    call z,SetDirChanged
+    ld a,(ActionStatus)
+    bit 2,a
+    call nz,UnsetDirChanged
     ld a,(Scroll)
+    ld (LastScroll), a
     add SCROLL_HORIZONTAL_SPEED
     ld (Scroll),a
     jp ContinueScroll
+
+TestDebug:
+    ret
 
 ;==============================================================
 ;----- 3) UPDATE SCROLL INDEXES ----------------------------
 ;==============================================================
 UpdateScrollIndexes:
     ld a,(Scroll)
-    and %111 ; Se comprueba que el scroll sea multiplo de 8. Si si lo es, Checkeamos si poner a 1 el flag de copiar bloques
-    jp z,CalculateIfCopyBlocks ; si entra en este método, no actualiza indices ni copia bloques. Lo deja para la siguiente iteracion que
-                                ;copiará bloques dependiendo de la dirección
+    and %111 ; Se comprueba que el scroll sea multiplo de 8. Si si lo es, calculamos y copiamos bloques
+    call z, TestDebug
 
-ContinueUpdatingIndexes:
-    ld a,(ActionStatus)
-    bit 3,a
-    jp z,NoUpdateIndex ; Si el flag de copiar bloques está activo, quiere decir que 
-    ;seguimos para copiar bloques y actualizar indices, si no, nos saltamos todo eso.
+    ld a,(LastScroll)
+    and %111 ; Se comprueba que el scroll sea multiplo de 8. Si si lo es, calculamos y copiamos bloques
+    jp nz, NoUpdateIndex
 
-    ;TODO Algo pasa con el PointerBgScroll. Reproducir:
-    ; - mover scroll al limite de copiar bloque pero que NO se copie
-    ; - Inmediatamente después, mover en la otra dirección. Se copia el bloque en su lugar, pero un bloque erroneo
+    ld a,(ActionStatus) ;Si se han copiado ya los bloques, nos saltamos copiarlos otra vez, en el caso que nos hayamos quedado parados en scroll multiplo de 8 
+    bit 4,a
+    jp z, NoUpdateIndex
+    ld a,(LastScroll)
+    add 1
+    sub 1
+    jp z, dontAdd
+    cpl
+    SRL a
+    SRL a
+    SRL a
+    add 1
+    jp z, dontAdd
+    SLA a
+dontAdd:
 
-    ld a,(ScrollStatus)
-    bit 3,a
-    call z, resetIndexScrollScreen
+    ld (RealScrollScreen), a
 
+ContinueCopying:
+    call CalculatePointerBgScroll
+    call CopyBlocks
+    call UpdateIndexBGScroll
+
+NoUpdateIndex
+    ret
+
+UpdateIndexBGScroll:
     ld a,(ScrollStatus)
     bit 0,a
     jp z, moveIndexesLeft
     bit 2,a
     jp z, moveIndexesRight
-
 ContinueUpdating:
-    call CalculatePointerBgScroll
-    call CopyBlocks
-
-NoUpdateIndex
     ret
 
-CalculateIfCopyBlocks:
-    ld a,(Scroll)
-    cpl
-    ;desplazar 3 a la derecha
-    SRL a
-    SRL a
-    SRL a
-    ; añadir 1
-    add 1
-    jp z, dontAdd
-    SLA a
-    ;add 2
-dontAdd:
-    ld (RealScrollScreen), a
-
-
-    ld a,(ActionStatus) ;Si no se han copiado ya los bloques
-    bit 4,a
-    jp z,ContinueUpdatingIndexes
-    call SetCopyBlocks
-    ;TODO Intuyo que habrá que preguntar por los límites aquí, pero no lo se.
-    jp NoUpdateIndex
-
 moveIndexesRight:
-    call LastDirectionRight
+    ld a,(ActionStatus)
+    bit 1,a
+    jp z, ContinueUpdating
     ld ix,(IndexBgScroll)
     inc ix
     inc ix
     ld (IndexBgScroll),ix
-    call CheckScreenEndRight
     jp ContinueUpdating
 
 moveIndexesLeft:
-    call LastDirectionLeft
+    ld a,(ActionStatus)
+    bit 1,a
+    jp z, ContinueUpdating
     ld ix,(IndexBgScroll)
     dec ix
     dec ix
     ld (IndexBgScroll),ix
-    call CheckScreenEndLeft
     jp ContinueUpdating
-
-CheckScreenEndRight:
-    ;Si llega al final de la longitud del mapa en memoria, empieza de nuevo
-    call UnsetReachRight
-    or a ;clear carry flag
-    ld hl,(IndexBgScroll)
-    ld de,BG_TILES_WIDTH
-    sbc hl,de
-    call nc,SetReachRight   ;IndexBgScroll >= BG_WIDTH
-    ret
-
-CheckScreenEndLeft:
-    call UnsetReachLeft
-    or a ;clear carry flag
-    ld hl,(IndexBgScroll)
-    ld de,0
-    sbc hl,de
-    call z,SetReachLeft
-    ret   
 
 CalculatePointerBgScroll:
     ld hl,(IndexBgScroll)
@@ -430,35 +404,25 @@ ContinueCalculate:
     ret
 
 SetPointerRight:
-    ld a,(ScrollStatus)
-    bit 5,a
-    jp z, SetPointerLeft
     ld e,SCREEN_WIDTH
     ld d,0
     add hl,de
-    jp ContinueCalculate
-
-SetPointerLeft:
-    ld a,(ScrollStatus)
-    bit 4,a
-    jp z, SetPointerRight
+    ld a,(ActionStatus)
+    bit 1,a
+    jp nz, ContinueCalculate
     ld e,2    ; DE = A
     ld d,0
     sbc hl,de
     jp ContinueCalculate
 
-;==============================================================
-;----- 4) COPY SCROLL BLOCK ----------------------------
-;==============================================================
-CopyScrollBlock:
+SetPointerLeft:
     ld a,(ActionStatus)
-    bit 3,a
-    jp z, DontCopyBlocks
-
-    ; Si ha llegado aquí, quiere decir que no había bloqueo de copia de tiles, y que toca copiar tiles.
-    call CopyBlocks
-DontCopyBlocks:
-    ret
+    bit 1,a
+    jp z, ContinueCalculate
+    ld e,2    ; DE = A
+    ld d,0
+    sbc hl,de
+    jp ContinueCalculate
 
 ;==============================================================
 ;----- 5) MOVE SCROLL REGISTER ----------------------------
@@ -467,6 +431,15 @@ MoveScrollRegister:
     ld a,(Scroll)
     ld b,VDP_HORIZONTAL_SCROLL_REGISTER
     call SetRegister
+
+    ld a,(ScrollStatus)
+    bit 0,a
+    call z, LastDirectionLeft
+
+    ld a,(ScrollStatus)
+    bit 2,a
+    call z, LastDirectionRight
+
     ret
 
 ;==============================================================

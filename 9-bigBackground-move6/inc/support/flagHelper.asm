@@ -95,3 +95,14 @@ SetDirChanged:
     and a,%11111101
     ld (ActionStatus),a
     ret
+
+ResetBGColor:
+    xor a
+    ld (BgColor),a
+    ret
+
+ChangeBGColor:
+    ld a,(BgColor)
+    add 1
+    ld (BgColor),a
+    ret

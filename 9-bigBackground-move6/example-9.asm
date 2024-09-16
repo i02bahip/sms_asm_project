@@ -58,7 +58,7 @@
 ; Bit 2: Mode 4 enable
 ; Bit 1: extra height enable
 ; Bit 0: Sync enable
-.define VDP_REG_0_TURN_SCREEN_ON_FULL     %00100110 
+.define VDP_REG_0_TURN_SCREEN_ON_FULL     %00110110 
 .define VDP_REGISTER_0_INDEX 0
 
 ;---------- VDP REGISTER 1 CONSTANTS
@@ -72,6 +72,12 @@
 ; Bit 0: Zoomed sprites -> 16x16 pixels
 .define VDP_REG_1_TURN_SCREEN_ON_TALL_SPRITES %11100010
 .define VDP_REGISTER_1_INDEX 1
+
+.define VDP_REG_7_BG_COLOR     %00000011 
+.define VDP_REGISTER_7_INDEX 7
+
+.define VDP_REG_10_LINE_INTERRUPT     %00000000 
+.define VDP_REGISTER_10_INDEX $0A
 
 ;======================================================================
 ; V A R I A B L E S
@@ -104,6 +110,7 @@
     ; Bit 2: - Ultima direccion derecha
     ; Bit 1: -
     ; Bit 0: - Ultima direccion izquierda
+    BgColor db
 
 .ends
 
@@ -131,16 +138,35 @@ jp main         ; jump to main program
    exx
    in a,VDP_CONTROL        ; get vdp status / satisfy interrupt.
    ld (VDPStatus),a            ; save vdp status in ram
+   and	%10000000						; VDP Interrupt information.
+        ;x.......						; 1: VBLANK Interrupt, 0: H-Line Interrupt [if enabled].
+        ;.X.....						; 9 sprites on a raster line.
+        ;..x.....						; Sprite Collision.
+   jp		nz, _else
+   call	HBlank_Handler
+   jp		_endif
+_else:
+   call	VBlank_Handler
+_endif:
    exx
    ex af,af'               ; restore accumulator.
-   call ButtonHandle
-   call GetCtrl
    ei                  ; enable interrupts.
    reti
 
 .org $0066              ; Pause button interrupt
     retn
 
+VBlank_Handler:
+    call ButtonHandle
+    call GetCtrl
+    ret
+
+
+HBlank_Handler:
+    ld a,(BgColor)
+    ld b,VDP_REGISTER_7_INDEX
+    call SetRegister
+	ret
 ;==============================================================
 ; Main program
 ;==============================================================
@@ -175,7 +201,8 @@ main:
 ;==============================================================
 ; Init scrollStatus and actionStatus byte
 ;==============================================================
-    ld a,0
+    xor a
+    ld (BgColor), a
     or a,%11111111
     ld (ScrollStatus),a
     ld (ActionStatus),a
@@ -192,7 +219,7 @@ main:
     ld bc,TileSetEnd-TileSet  ; Counter for number of bytes to write
     call LoadVRAM
     ;Setup scroll
-    ld a,0
+    xor a
     ld b,VDP_HORIZONTAL_SCROLL_REGISTER
     call SetRegister
 
@@ -211,11 +238,20 @@ main:
 ; MAIN LOOP
 ;==============================================================
 Loop:
+    call ResetBGColor
     call WaitForFrameInterrupt ; Esperamos a que se haya pintado la pantalla.
+    ld a,VDP_REG_10_LINE_INTERRUPT
+    ld b,VDP_REGISTER_10_INDEX
+    call SetRegister
+    call ChangeBGColor
     call UpdateScrollStatus ;Updateamos los flags que indican direccion de scroll. Modifica: ScrollStatus db
+    call ChangeBGColor
     call UpdateScroll  ;Updateamos la variable scroll. Modifica: Scroll db
+    call ChangeBGColor
     call UpdateScrollIndexes ;Updateamos los indices del scroll. Modifica: PointerBgScroll, RealScrollScreen, IndexBgScroll, ActionStatus, ScrollStatus
+    call ChangeBGColor
     call MoveScrollRegister ;Una vez todo esté listo, se mueve de forma real el scroll.
+    call ChangeBGColor
     jp Loop  
     ret
 
@@ -268,6 +304,12 @@ TurnOnscreen:
     call SetRegister
     ld a,VDP_REG_1_TURN_SCREEN_ON_TALL_SPRITES
     ld b,VDP_REGISTER_1_INDEX
+    call SetRegister
+    ld a,VDP_REG_10_LINE_INTERRUPT
+    ld b,VDP_REGISTER_10_INDEX
+    call SetRegister
+    ld a,VDP_REG_7_BG_COLOR
+    ld b,VDP_REGISTER_7_INDEX
     call SetRegister
     ei
     ret    

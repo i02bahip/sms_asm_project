@@ -73,7 +73,7 @@
 .define VDP_REG_1_TURN_SCREEN_ON_TALL_SPRITES %11100010
 .define VDP_REGISTER_1_INDEX 1
 
-.define VDP_REG_7_BG_COLOR     %00000011 
+.define VDP_REG_7_BG_COLOR     %00000000 
 .define VDP_REGISTER_7_INDEX 7
 
 .define VDP_REG_10_LINE_INTERRUPT     %00000000 
@@ -91,6 +91,8 @@
     PointerBgScroll dw         ; Apuntará al final del bgscroll o a bgScroll - tamaño de pantalla dependiendo si vamos a derecha o izquierda
     MapMemoryIndex dw         ;Dirección del tilemap en memoria
     MapVRAMIndex dw ;Dirección de la tabla que define lo que se ve en la pantalla
+    CopyMapVRAMIndex dw
+    CopyMapMemoryIndex dw
     Controller db
     ScrollStatus db     ;TODO aqui guardaremos flags:
     ; Bit 7: Limite inferior
@@ -163,7 +165,12 @@ VBlank_Handler:
 
 
 HBlank_Handler:
+    ;ld a,(BgColor)
+
     ld a,(BgColor)
+    add 1
+    ld (BgColor),a
+
     ld b,VDP_REGISTER_7_INDEX
     call SetRegister
 	ret
@@ -228,7 +235,6 @@ main:
 ;==============================================================
     call setScreen
     call InitVRAMAndMemoryIndex
-    call SetBlocksAlreadyCopied
 
 ;==============================================================
 ; Turn on the screen
@@ -240,8 +246,6 @@ main:
 Loop:
     call ResetBGColor
     call WaitForFrameInterrupt ; Esperamos a que se haya pintado la pantalla.
-    ld a,VDP_REG_10_LINE_INTERRUPT
-    ld b,VDP_REGISTER_10_INDEX
     call SetRegister
     call ChangeBGColor
     call UpdateScrollStatus ;Updateamos los flags que indican direccion de scroll. Modifica: ScrollStatus db
@@ -400,6 +404,7 @@ dontAdd:
 
 ContinueCopying:
     call CalculatePointerBgScroll
+    call PrepareCopyVars
     call CopyBlocks
     call UpdateIndexBGScroll
 
@@ -465,6 +470,19 @@ SetPointerLeft:
     ld d,0
     sbc hl,de
     jp ContinueCalculate
+
+PrepareCopyVars:
+    ;Aquí vamos a indicar en el mapa de tiles que se muestran por pantalla, la nueva columna a rellenar 
+    ld hl,(MapVRAMIndex) ; Indice de donde empieza la dirección de la tabla de tiles que se muestra en pantalla
+    ld a,(RealScrollScreen) ; Indice de por donde va el scroll real (columna invisible)
+    ld e,a
+    ld d,0
+    add hl,de   ; Añade offset del scroll real para que copie en la posición correcta en vram los bloques del mapa completo en el siguiente paso
+    ld (CopyMapVRAMIndex),hl
+    ld hl,TileMap
+    ld (CopyMapMemoryIndex),hl ;Apunta al inicio del mapa completo en memoria
+
+    ret
 
 ;==============================================================
 ;----- 5) MOVE SCROLL REGISTER ----------------------------

@@ -165,8 +165,6 @@ VBlank_Handler:
 
 
 HBlank_Handler:
-    ;ld a,(BgColor)
-
     ld a,(BgColor)
     add 1
     ld (BgColor),a
@@ -235,6 +233,7 @@ main:
 ;==============================================================
     call setScreen
     call InitVRAMAndMemoryIndex
+    call SetBlocksAlreadyCopied
 
 ;==============================================================
 ; Turn on the screen

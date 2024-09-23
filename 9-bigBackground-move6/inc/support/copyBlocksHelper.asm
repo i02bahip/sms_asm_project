@@ -1,4 +1,5 @@
 CopyBlocks:
+    call SetBlocksAlreadyCopied
     ld a,SCREEN_HEIGHT_TILES    ; Contador de lineas vertical
 CopyBlocksLoop:
     push af ; Salvar el contador

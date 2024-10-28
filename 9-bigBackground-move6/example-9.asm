@@ -73,7 +73,7 @@
 .define VDP_REG_1_TURN_SCREEN_ON_TALL_SPRITES %11100010
 .define VDP_REGISTER_1_INDEX 1
 
-.define VDP_REG_7_BG_COLOR     %00000011 
+.define VDP_REG_7_BG_COLOR     %00000000 
 .define VDP_REGISTER_7_INDEX 7
 
 .define VDP_REG_10_LINE_INTERRUPT     %00000000 
@@ -163,7 +163,10 @@ VBlank_Handler:
 
 
 HBlank_Handler:
+    ;ld a,(BgColor)
     ld a,(BgColor)
+    add 1
+    ld (BgColor),a
     ld b,VDP_REGISTER_7_INDEX
     call SetRegister
 	ret
@@ -240,8 +243,6 @@ main:
 Loop:
     call ResetBGColor
     call WaitForFrameInterrupt ; Esperamos a que se haya pintado la pantalla.
-    ld a,VDP_REG_10_LINE_INTERRUPT
-    ld b,VDP_REGISTER_10_INDEX
     call SetRegister
     call ChangeBGColor
     call UpdateScrollStatus ;Updateamos los flags que indican direccion de scroll. Modifica: ScrollStatus db

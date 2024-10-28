@@ -91,6 +91,8 @@
     PointerBgScroll dw         ; Apuntará al final del bgscroll o a bgScroll - tamaño de pantalla dependiendo si vamos a derecha o izquierda
     MapMemoryIndex dw         ;Dirección del tilemap en memoria
     MapVRAMIndex dw ;Dirección de la tabla que define lo que se ve en la pantalla
+    CopyMapVRAMIndex dw
+    CopyMapMemoryIndex dw
     Controller db
     ScrollStatus db     ;TODO aqui guardaremos flags:
     ; Bit 7: Limite inferior
@@ -167,6 +169,7 @@ HBlank_Handler:
     ld a,(BgColor)
     add 1
     ld (BgColor),a
+
     ld b,VDP_REGISTER_7_INDEX
     call SetRegister
 	ret
@@ -401,6 +404,7 @@ dontAdd:
 
 ContinueCopying:
     call CalculatePointerBgScroll
+    call PrepareCopyVars
     call CopyBlocks
     call UpdateIndexBGScroll
 
@@ -466,6 +470,19 @@ SetPointerLeft:
     ld d,0
     sbc hl,de
     jp ContinueCalculate
+
+PrepareCopyVars:
+    ;Aquí vamos a indicar en el mapa de tiles que se muestran por pantalla, la nueva columna a rellenar 
+    ld hl,(MapVRAMIndex) ; Indice de donde empieza la dirección de la tabla de tiles que se muestra en pantalla
+    ld a,(RealScrollScreen) ; Indice de por donde va el scroll real (columna invisible)
+    ld e,a
+    ld d,0
+    add hl,de   ; Añade offset del scroll real para que copie en la posición correcta en vram los bloques del mapa completo en el siguiente paso
+    ld (CopyMapVRAMIndex),hl
+    ld hl,TileMap
+    ld (CopyMapMemoryIndex),hl ;Apunta al inicio del mapa completo en memoria
+
+    ret
 
 ;==============================================================
 ;----- 5) MOVE SCROLL REGISTER ----------------------------

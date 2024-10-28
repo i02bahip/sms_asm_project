@@ -15,13 +15,13 @@ ScrollNoMovement:
     ld a,(ScrollStatus)
     or a,%00000101
     ld (ScrollStatus),a
-    ret
+    ret 
 
 ScrollDirectionLeft:
     ld a,(ScrollStatus)
     or a,%00100101
     and a,%11111110
-    ld (ScrollStatus),a
+    ld (ScrollStatus), a
     call UnsetBlocksAlreadyCopied
     jp ContinueScrollStatus
 
@@ -46,6 +46,8 @@ ScrollDirectionRight:
     ; Bit 0: - Ultima direccion izquierda
 ;------------------------------------------------
 
+;----------- NO USADOS PERO PUEDEN SER ÚTILES----
+
 SetCopyBlocks:
     ld a,(ActionStatus)
     or a,%00001000
@@ -69,6 +71,8 @@ SetBlocksAlreadyCopied:
     and a,%11101111
     ld (ActionStatus),a
     ret
+
+;------------------------------------------------
 
 LastDirectionLeft:
     ld a,(ActionStatus)

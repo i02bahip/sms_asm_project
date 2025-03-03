@@ -85,7 +85,6 @@
 .ramsection "variables" slot 1
     VDPStatus db        ; Gets updated by the frame int. handler.
     Scroll db           ; Scroll horizontal: va de forma descendente de FF a 00 de 1 en 1
-    LastScroll db
     RealScrollScreen db ; Indice de Scroll por tiles en pantalla: va de forma ascendente de 00 a 40 de dos en dos (2 bytes  = tile). Indica el tile a pintar
     IndexBgScroll dw           ; Indice de Scroll por tiles en el background entero. Va de forma ascendente de 00 a .
     PointerBgScroll dw         ; Apuntará al final del bgscroll o a bgScroll - tamaño de pantalla dependiendo si vamos a derecha o izquierda
@@ -166,9 +165,8 @@ VBlank_Handler:
 
 HBlank_Handler:
     ;ld a,(BgColor)
-    ld a,(BgColor)
-    add 1
-    ld (BgColor),a
+    ;add 1
+    ;ld (BgColor),a
 
     ld b,VDP_REGISTER_7_INDEX
     call SetRegister
@@ -244,18 +242,10 @@ main:
 ; MAIN LOOP
 ;==============================================================
 Loop:
-    call ResetBGColor
-    call WaitForFrameInterrupt ; Esperamos a que se haya pintado la pantalla.
-    call SetRegister
-    call ChangeBGColor
-    call UpdateScrollStatus ;Updateamos los flags que indican direccion de scroll. Modifica: ScrollStatus db
-    call ChangeBGColor
-    call UpdateScroll  ;Updateamos la variable scroll. Modifica: Scroll db
-    call ChangeBGColor
+    call UpdateScrollStatus ;Updateamos los flags que indican direccion de scroll. Modifica: ScrollStatus -> bits 0(izq) y 2(der), ActionStatus -> bit 4 (Bloques ya copiados)
     call UpdateScrollIndexes ;Updateamos los indices del scroll. Modifica: PointerBgScroll, RealScrollScreen, IndexBgScroll, ActionStatus, ScrollStatus
-    call ChangeBGColor
     call MoveScrollRegister ;Una vez todo esté listo, se mueve de forma real el scroll.
-    call ChangeBGColor
+    call WaitForFrameInterrupt ; Esperamos a que se haya pintado la pantalla.
     jp Loop  
     ret
 
@@ -328,49 +318,8 @@ UpdateScrollStatus:
     jp z,ScrollDirectionLeft
     bit PLAYER1_JOYSTICK_RIGHT,a
     jp z,ScrollDirectionRight
-ContinueScrollStatus:
     ret
 
-;==============================================================
-;----- 2) UPDATE SCROLL ----------------------------
-;==============================================================
-UpdateScroll:
-    ld a,(ScrollStatus)
-    bit 0,a
-    jp z,updateScrollLeft
-    bit 2,a
-    jp z,updateScrollRight
-ContinueScroll:
-    ret
-
-updateScrollRight:
-    ld a,(ActionStatus)
-    bit 0,a
-    call z,SetDirChanged
-    ld a,(ActionStatus)
-    bit 0,a
-    call nz,UnsetDirChanged
-    ld a,(Scroll)
-    ld (LastScroll), a
-    sub SCROLL_HORIZONTAL_SPEED
-    ld (Scroll),a
-    jp ContinueScroll
-
-updateScrollLeft:
-    ld a,(ActionStatus)
-    bit 2,a
-    call z,SetDirChanged
-    ld a,(ActionStatus)
-    bit 2,a
-    call nz,UnsetDirChanged
-    ld a,(Scroll)
-    ld (LastScroll), a
-    add SCROLL_HORIZONTAL_SPEED
-    ld (Scroll),a
-    jp ContinueScroll
-
-TestDebug:
-    ret
 
 ;==============================================================
 ;----- 3) UPDATE SCROLL INDEXES ----------------------------
@@ -378,16 +327,12 @@ TestDebug:
 UpdateScrollIndexes:
     ld a,(Scroll)
     and %111 ; Se comprueba que el scroll sea multiplo de 8. Si si lo es, calculamos y copiamos bloques
-    call z, TestDebug
-
-    ld a,(LastScroll)
-    and %111 ; Se comprueba que el scroll sea multiplo de 8. Si si lo es, calculamos y copiamos bloques
     jp nz, NoUpdateIndex
 
     ld a,(ActionStatus) ;Si se han copiado ya los bloques, nos saltamos copiarlos otra vez, en el caso que nos hayamos quedado parados en scroll multiplo de 8 
     bit 4,a
     jp z, NoUpdateIndex
-    ld a,(LastScroll)
+    ld a,(Scroll)
     add 1
     sub 1
     jp z, dontAdd
@@ -488,6 +433,7 @@ PrepareCopyVars:
 ;----- 5) MOVE SCROLL REGISTER ----------------------------
 ;==============================================================
 MoveScrollRegister:
+    call UpdateScroll
     ld a,(Scroll)
     ld b,VDP_HORIZONTAL_SCROLL_REGISTER
     call SetRegister
@@ -501,6 +447,27 @@ MoveScrollRegister:
     call z, LastDirectionRight
 
     ret
+
+UpdateScroll:
+    ld a,(ScrollStatus)
+    bit 0,a
+    jp z,updateScrollLeft
+    bit 2,a
+    jp z,updateScrollRight
+ContinueScroll:
+    ret
+
+updateScrollRight:
+    ld a,(Scroll)
+    sub SCROLL_HORIZONTAL_SPEED
+    ld (Scroll),a
+    jp ContinueScroll
+
+updateScrollLeft:
+    ld a,(Scroll)
+    add SCROLL_HORIZONTAL_SPEED
+    ld (Scroll),a
+    jp ContinueScroll
 
 ;==============================================================
 ; Data

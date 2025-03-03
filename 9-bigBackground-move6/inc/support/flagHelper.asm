@@ -23,7 +23,13 @@ ScrollDirectionLeft:
     and a,%11111110
     ld (ScrollStatus), a
     call UnsetBlocksAlreadyCopied
-    jp ContinueScrollStatus
+    ld a,(ActionStatus)
+    bit 2,a
+    call z,SetDirChanged
+    ld a,(ActionStatus)
+    bit 2,a
+    call nz,UnsetDirChanged
+    ret
 
 ScrollDirectionRight:
     ld a,(ScrollStatus)
@@ -31,7 +37,13 @@ ScrollDirectionRight:
     and a,%11111011
     ld (ScrollStatus),a
     call UnsetBlocksAlreadyCopied
-    jp ContinueScrollStatus
+    ld a,(ActionStatus)
+    bit 0,a
+    call z,SetDirChanged
+    ld a,(ActionStatus)
+    bit 0,a
+    call nz,UnsetDirChanged
+    ret
 
 ;------------------------------------------------
 ;------------------------------------------------
@@ -42,7 +54,7 @@ ScrollDirectionRight:
     ; Bit 4: Bloques ya copiados
     ; Bit 3: Copiar bloques
     ; Bit 2: - Ultima direccion derecha
-    ; Bit 1: -
+    ; Bit 1: - Cambio de direccion
     ; Bit 0: - Ultima direccion izquierda
 ;------------------------------------------------
 
